@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  niu-ma-tools:
+    build: .
+    container_name: niu-ma-tools
+    ports:
+      - "8787:8787"
+    environment:
+      - APP_NAME=Niu Ma Tools
+    volumes:
+      - ./app-logs:/data/logs
+    restart: unless-stopped
