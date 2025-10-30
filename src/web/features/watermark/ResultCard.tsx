@@ -43,8 +43,16 @@ export function ResultCard({ status, result, error }: Props) {
       <div className="space-y-5 rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/90">
         <div>
           <h3 className="text-lg font-semibold text-white">生成成功</h3>
-          <p className="mt-1 text-sm text-white/70">点击下方按钮即可下载带水印的图片。</p>
+          <p className="mt-1 text-sm text-white/70">以下预览即为生成结果，点击下方按钮可下载原图尺寸。</p>
         </div>
+        <figure className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+          <img
+            src={result.url}
+            alt="生成的水印图片预览"
+            className="h-auto w-full object-contain"
+            loading="lazy"
+          />
+        </figure>
         <div className="rounded-xl bg-black/40 p-4">
           <p className="text-sm text-white/60">文件名：{result.filename}</p>
           <p className="text-sm text-white/60">大小：{result.size}</p>

@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 ASSETS_DIR = Path(__file__).resolve().parent / 'assets' / 'watermark'
 FONT_PATH = Path(__file__).resolve().parent / 'assets' / 'fonts' / '汉仪旗黑X2-65W.ttf'
+FALLBACK_FONT_PATH = Path(__file__).resolve().parent / 'assets' / 'fonts' / 'NotoSansSC-Regular.otf'
 SEPARATOR_PATH = ASSETS_DIR / 'separator.png'
 LOGO_PATH = ASSETS_DIR / 'logo.png'
 
@@ -25,15 +26,25 @@ def get_current_info() -> Dict[str, str]:
     }
 
 
+_failed_font_names: set[str] = set()
+
+
 def load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    try:
-        return ImageFont.truetype(str(FONT_PATH), size)
-    except OSError as exc:  # pragma: no cover - fallback path
-        # 如果字体不存在，尝试使用默认字体，确保流程继续
-        sys.stderr.write(
-            f'警告：无法加载字体 "{FONT_PATH.name}" ({exc}). 将使用 Pillow 默认字体，可能无法显示中文。\n'
-        )
-        return ImageFont.load_default()
+    for candidate in (FONT_PATH, FALLBACK_FONT_PATH):
+        try:
+            return ImageFont.truetype(str(candidate), size)
+        except OSError as exc:  # pragma: no cover - fallback path
+            if candidate.name not in _failed_font_names:
+                sys.stderr.write(
+                    f'警告：无法加载字体 "{candidate.name}" ({exc}). 将尝试其他字体。\n'
+                )
+                _failed_font_names.add(candidate.name)
+
+    if 'PIL-DEFAULT' not in _failed_font_names:
+        sys.stderr.write('警告：无法加载自定义字体，改用 Pillow 默认字体，可能无法显示中文。\n')
+        _failed_font_names.add('PIL-DEFAULT')
+
+    return ImageFont.load_default()
 
 
 def wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_width: int) -> List[str]:

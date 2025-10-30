@@ -33,9 +33,22 @@ export const useWatermarkStore = create<WatermarkState>((set) => ({
   status: 'idle',
   result: null,
   error: null,
-  reset: () => set({ status: 'idle', result: null, error: null }),
+  reset: () =>
+    set((state) => {
+      if (state.result?.url) {
+        URL.revokeObjectURL(state.result.url)
+      }
+
+      return { status: 'idle', result: null, error: null }
+    }),
   generate: async (file, payload) => {
-    set({ status: 'processing', error: null, result: null })
+    set((state) => {
+      if (state.result?.url) {
+        URL.revokeObjectURL(state.result.url)
+      }
+
+      return { status: 'processing', error: null, result: null }
+    })
 
     const formData = new FormData()
     formData.append('image', file)
@@ -118,12 +131,19 @@ export const useWatermarkStore = create<WatermarkState>((set) => ({
       filenameFromContentDisposition ||
       `${file.name.replace(/\.[^/.]+$/, '') || 'watermark'}-${Date.now()}-marked.png`
 
-    set({
-      status: 'success',
-      result: {
-        url,
-        filename,
-        size: formatFileSize(blob.size)
+    set((state) => {
+      if (state.result?.url) {
+        URL.revokeObjectURL(state.result.url)
+      }
+
+      return {
+        status: 'success',
+        result: {
+          url,
+          filename,
+          size: formatFileSize(blob.size)
+        },
+        error: null
       }
     })
   }
