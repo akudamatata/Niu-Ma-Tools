@@ -29,88 +29,93 @@ function formatFileSize(bytes: number) {
   return `${value.toFixed(2)} ${units[power]}`
 }
 
-let worker: Worker | null = null
-
-function ensureWorker() {
-  if (typeof window === 'undefined') {
-    return null
-  }
-
-  if (!worker) {
-    const workerUrl = new URL('../features/audio-convert/ffmpeg.worker.ts', import.meta.url)
-
-    try {
-      worker = new Worker(workerUrl, { type: 'module' })
-    } catch (moduleError) {
-      console.warn('Failed to initialize module worker, falling back to classic worker.', moduleError)
-
-      try {
-        worker = new Worker(workerUrl, { type: 'classic' })
-      } catch (classicError) {
-        console.error('Failed to initialize classic worker.', classicError)
-        throw classicError
-      }
-    }
-  }
-
-  return worker
-}
-
 export const useConversionStore = create<ConversionState>((set) => ({
   status: 'idle',
   result: null,
   error: null,
   reset: () => set({ status: 'idle', result: null, error: null }),
   convert: async (file: File, bitrate: string) => {
-    const ffmpegWorker = ensureWorker()
-
-    if (!ffmpegWorker) {
-      set({
-        status: 'error',
-        error: { message: '当前环境不支持 Web Worker 转码。' },
-        result: null
-      })
-      return
-    }
-
-    const id = crypto.randomUUID()
-
     set({ status: 'converting', error: null, result: null })
 
-    const fileBuffer = await file.arrayBuffer()
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('bitrate', bitrate)
 
-    const response = await new Promise<{ status: string; payload: any }>((resolve) => {
-      const handleMessage = (event: MessageEvent) => {
-        if (event.data?.id !== id) return
-        ffmpegWorker.removeEventListener('message', handleMessage)
-        resolve(event.data)
-      }
+    let response: Response
 
-      ffmpegWorker.addEventListener('message', handleMessage)
-
-      ffmpegWorker.postMessage({
-        id,
-        fileData: fileBuffer,
-        inputName: file.name,
-        bitrate
-      }, [fileBuffer])
-    })
-
-    if (response.status === 'error') {
+    try {
+      response = await fetch('/api/convert', {
+        method: 'POST',
+        body: formData
+      })
+    } catch (error) {
       set({
         status: 'error',
+        result: null,
         error: {
-          message: '转换失败，请重试。',
-          detail: response.payload?.message
+          message: '无法连接到转换服务，请检查网络后重试。',
+          detail: error instanceof Error ? error.message : undefined
         }
       })
       return
     }
 
-    const payload = response.payload as { buffer: ArrayBuffer; inputName: string }
-    const blob = new Blob([payload.buffer], { type: 'audio/mpeg' })
+    if (!response.ok) {
+      let detail: string | undefined
+
+      const contentType = response.headers.get('content-type') ?? ''
+
+      try {
+        if (contentType.includes('application/json')) {
+          const data = (await response.json()) as { error?: string; message?: string }
+          detail = data.error ?? data.message
+        } else {
+          detail = await response.text()
+        }
+      } catch (parseError) {
+        detail = parseError instanceof Error ? parseError.message : undefined
+      }
+
+      set({
+        status: 'error',
+        result: null,
+        error: {
+          message: '转换失败，请重试。',
+          detail
+        }
+      })
+      return
+    }
+
+    const blob = await response.blob()
+    const encodedName = response.headers.get('x-converted-filename')
+    const contentDisposition = response.headers.get('content-disposition')
+
+    const filenameFromContentDisposition = (() => {
+      if (!contentDisposition) return null
+
+      const match = contentDisposition.match(/filename\*?=(?:UTF-8''|\")?([^;"']+)/i)
+      if (!match) return null
+
+      try {
+        return decodeURIComponent(match[1].replace(/\"/g, ''))
+      } catch {
+        return match[1].replace(/\"/g, '')
+      }
+    })()
+
+    const filename =
+      (encodedName && (() => {
+        try {
+          return decodeURIComponent(encodedName)
+        } catch {
+          return encodedName
+        }
+      })()) ||
+      filenameFromContentDisposition ||
+      `${file.name.replace(/\.[^/.]+$/, '') || 'converted'}-niu-ma.mp3`
+
     const url = URL.createObjectURL(blob)
-    const filename = `${payload.inputName.replace(/\.[^/.]+$/, '') || 'converted'}-niu-ma.mp3`
 
     set({
       status: 'success',
