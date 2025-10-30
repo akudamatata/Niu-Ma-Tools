@@ -40,15 +40,15 @@ function ensureWorker() {
     const workerUrl = new URL('../features/audio-convert/ffmpeg.worker.ts', import.meta.url)
 
     try {
-      worker = new Worker(workerUrl, { type: 'classic' })
-    } catch (classicError) {
-      console.warn('Failed to initialize classic worker, falling back to module worker.', classicError)
+      worker = new Worker(workerUrl, { type: 'module' })
+    } catch (moduleError) {
+      console.warn('Failed to initialize module worker, falling back to classic worker.', moduleError)
 
       try {
-        worker = new Worker(workerUrl, { type: 'module' })
-      } catch (moduleError) {
-        console.error('Failed to initialize module worker.', moduleError)
-        throw moduleError
+        worker = new Worker(workerUrl, { type: 'classic' })
+      } catch (classicError) {
+        console.error('Failed to initialize classic worker.', classicError)
+        throw classicError
       }
     }
   }
