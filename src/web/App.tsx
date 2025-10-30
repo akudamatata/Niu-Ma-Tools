@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ToolsGrid } from './components/ToolsGrid'
 import { Hero } from './components/Hero'
 
+const AudioConvertFeature = lazy(() => import('./features/audio-convert'))
 const LedgerAnalysisFeature = lazy(() => import('./features/ledger-analysis'))
 const WatermarkFeature = lazy(() => import('./features/watermark'))
 
@@ -19,6 +20,11 @@ function App() {
         >
           <ToolsGrid />
         </motion.section>
+        <section className="mt-16" id="audio-convert">
+          <Suspense fallback={<div className="text-center text-lg">加载音频转 MP3 工具...</div>}>
+            <AudioConvertFeature />
+          </Suspense>
+        </section>
         <section className="mt-16" id="ledger-analysis">
           <Suspense fallback={<div className="text-center text-lg">加载 12345 台账分析工具...</div>}>
             <LedgerAnalysisFeature />

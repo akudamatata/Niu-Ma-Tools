@@ -16,8 +16,8 @@ const tools = [
   {
     name: '音频转 MP3',
     description: '浏览器内完成高质量 MP3 转码，安全又快速。',
-    href: '#',
-    status: '敬请期待'
+    href: '#audio-convert',
+    status: '可用'
   },
   {
     name: '音频降噪',
