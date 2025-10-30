@@ -33,6 +33,29 @@ function formatFileSize(bytes: number) {
 let ffmpegInstance: FFmpeg | null = null
 let loadPromise: Promise<void> | null = null
 let commandQueue: Promise<void> = Promise.resolve()
+let workerPatched = false
+
+function ensureClassicWorkers() {
+  if (workerPatched) return
+  if (typeof window === 'undefined' || typeof window.Worker === 'undefined') return
+
+  const OriginalWorker = window.Worker
+
+  const ClassicWorker = function (stringUrl: string | URL, options?: WorkerOptions) {
+    const normalizedOptions = options ? { ...options } : {}
+
+    if (normalizedOptions.type === undefined) {
+      normalizedOptions.type = 'classic'
+    }
+
+    return new OriginalWorker(stringUrl, normalizedOptions)
+  }
+
+  ClassicWorker.prototype = OriginalWorker.prototype
+
+  window.Worker = ClassicWorker as unknown as typeof Worker
+  workerPatched = true
+}
 
 const CORE_VERSION = '0.12.6'
 const FFMPEG_BASE_URL = `https://unpkg.com/@ffmpeg/core-st@${CORE_VERSION}/dist/`
@@ -41,6 +64,8 @@ async function ensureFFmpeg() {
   if (typeof window === 'undefined') {
     throw new Error('当前环境不支持 Web 转码。')
   }
+
+  ensureClassicWorkers()
 
   if (!ffmpegInstance) {
     ffmpegInstance = createFFmpeg({
