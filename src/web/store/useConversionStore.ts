@@ -38,7 +38,7 @@ function ensureWorker() {
 
   if (!worker) {
     worker = new Worker(new URL('../features/audio-convert/ffmpeg.worker.ts', import.meta.url), {
-      type: 'module'
+      type: 'classic'
     })
   }
 
