@@ -22,8 +22,8 @@ export default function AudioConvertFeature() {
         <div className="flex-1 space-y-6">
           <h2 className="text-3xl font-semibold text-white">音频转 MP3</h2>
           <p className="text-white/70">
-            上传你的音频文件（WAV、AAC、OGG 等），我们会在浏览器内使用 WebAssembly 版 FFmpeg
-            将其转为高质量 MP3。整个过程不会上传到服务器，数据安全无忧。
+            上传你的音频文件（WAV、AAC、OGG 等），我们会将任务发送到服务器上的专业 FFmpeg 环境完成转码，
+            确保转换稳定可靠。
           </p>
           <ConvertForm />
         </div>
