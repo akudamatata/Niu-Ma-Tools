@@ -1,0 +1,14 @@
+name = "niu-ma-tools"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[site]
+bucket = "./dist"
+
+[assets]
+binding = "ASSETS"
+dir = "./dist"
+notFoundHandling = "none"
+
+[vars]
+APP_NAME = "Niu-Ma-Tools"
