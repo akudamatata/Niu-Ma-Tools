@@ -37,9 +37,20 @@ function ensureWorker() {
   }
 
   if (!worker) {
-    worker = new Worker(new URL('../features/audio-convert/ffmpeg.worker.ts', import.meta.url), {
-      type: 'module'
-    })
+    const workerUrl = new URL('../features/audio-convert/ffmpeg.worker.ts', import.meta.url)
+
+    try {
+      worker = new Worker(workerUrl, { type: 'classic' })
+    } catch (classicError) {
+      console.warn('Failed to initialize classic worker, falling back to module worker.', classicError)
+
+      try {
+        worker = new Worker(workerUrl, { type: 'module' })
+      } catch (moduleError) {
+        console.error('Failed to initialize module worker.', moduleError)
+        throw moduleError
+      }
+    }
   }
 
   return worker
