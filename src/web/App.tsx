@@ -4,7 +4,7 @@ import { ToolsGrid } from './components/ToolsGrid'
 import { Hero } from './components/Hero'
 
 const LedgerAnalysisFeature = lazy(() => import('./features/ledger-analysis'))
-const AudioConvertFeature = lazy(() => import('./features/audio-convert'))
+const WatermarkFeature = lazy(() => import('./features/watermark'))
 
 function App() {
   return (
@@ -24,9 +24,9 @@ function App() {
             <LedgerAnalysisFeature />
           </Suspense>
         </section>
-        <section className="mt-16" id="audio-convert">
-          <Suspense fallback={<div className="text-center text-lg">加载音频转换器...</div>}>
-            <AudioConvertFeature />
+        <section className="mt-16" id="watermark">
+          <Suspense fallback={<div className="text-center text-lg">加载自定义水印工具...</div>}>
+            <WatermarkFeature />
           </Suspense>
         </section>
       </div>
