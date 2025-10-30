@@ -13,9 +13,13 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.5",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "ffmpeg-static": "^5.2.0",
     "framer-motion": "^11.3.20",
     "hono": "^4.6.6",
     "mime": "^4.0.4",
+    "multer": "^2.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^4.5.4"
