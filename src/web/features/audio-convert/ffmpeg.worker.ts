@@ -1,8 +1,16 @@
 import { createFFmpeg } from '@ffmpeg/ffmpeg'
+import coreURL from '@ffmpeg/core-st/dist/ffmpeg-core.js?url'
+import wasmURL from '@ffmpeg/core-st/dist/ffmpeg-core.wasm?url'
+import workerURL from '@ffmpeg/core-st/dist/ffmpeg-core.worker.js?url'
 
 const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope
 
-const ffmpeg = createFFmpeg({ log: true })
+const ffmpeg = createFFmpeg({
+  log: true,
+  corePath: coreURL,
+  wasmPath: wasmURL,
+  workerPath: workerURL
+})
 
 const loadPromise = ffmpeg.load()
 
