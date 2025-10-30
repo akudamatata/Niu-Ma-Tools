@@ -15,19 +15,24 @@ const ffmpeg = createFFmpeg({
 
 const loadPromise = ffmpeg.load()
 
-ctx.onmessage = async (event: MessageEvent) => {
-  const { id, fileData, inputName, bitrate } = event.data as {
-    id: string
-    fileData: ArrayBuffer
-    inputName: string
-    bitrate: string
-  }
+type WorkerRequest = {
+  id: string
+  fileData: ArrayBuffer
+  inputName: string
+  bitrate: string
+}
+
+let commandQueue: Promise<void> = Promise.resolve()
+
+async function processCommand({ id, fileData, inputName, bitrate }: WorkerRequest) {
+  let inputFile = ''
+  let outputFile = ''
 
   try {
     await loadPromise
 
-    const inputFile = 'input'
-    const outputFile = 'output.mp3'
+    inputFile = `${id}-input`
+    outputFile = `${id}-output.mp3`
 
     ffmpeg.FS('writeFile', inputFile, new Uint8Array(fileData))
     await ffmpeg.run('-i', inputFile, '-b:a', bitrate, outputFile)
@@ -44,9 +49,6 @@ ctx.onmessage = async (event: MessageEvent) => {
       },
       [data.buffer as ArrayBuffer]
     )
-
-    ffmpeg.FS('unlink', inputFile)
-    ffmpeg.FS('unlink', outputFile)
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知错误'
     ctx.postMessage({
@@ -56,7 +58,28 @@ ctx.onmessage = async (event: MessageEvent) => {
         message
       }
     })
+  } finally {
+    try {
+      if (inputFile) {
+        ffmpeg.FS('unlink', inputFile)
+      }
+    } catch {
+      // ignore cleanup errors
+    }
+
+    try {
+      if (outputFile) {
+        ffmpeg.FS('unlink', outputFile)
+      }
+    } catch {
+      // ignore cleanup errors
+    }
   }
+}
+
+ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
+  const task = () => processCommand(event.data)
+  commandQueue = commandQueue.then(task, task)
 }
 
 export {}
