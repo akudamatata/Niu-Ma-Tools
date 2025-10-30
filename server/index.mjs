@@ -207,7 +207,7 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
 
 app.use(express.static(staticRoot))
 
-app.get('*', async (_req, res) => {
+app.use(async (_req, res) => {
   try {
     const html = await readFile(join(staticRoot, 'index.html'), 'utf8')
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
