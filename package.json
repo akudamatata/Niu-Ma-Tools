@@ -7,12 +7,14 @@
     "dev": "vite dev --host --open",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "start": "node server/index.mjs",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write ."
   },
   "dependencies": {
     "@ffmpeg/core-st": "^0.11.1",
     "@ffmpeg/ffmpeg": "^0.11.6",
+    "@hono/node-server": "^1.19.5",
     "framer-motion": "^11.3.20",
     "hono": "^4.6.6",
     "mime": "^4.0.4",

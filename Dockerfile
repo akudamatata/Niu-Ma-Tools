@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+
+FROM node:20-bookworm AS builder
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+FROM node:20-bookworm
+WORKDIR /app
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/dist ./dist
+COPY server ./server
+
+EXPOSE 8787
+
+CMD ["npm", "run", "start"]
