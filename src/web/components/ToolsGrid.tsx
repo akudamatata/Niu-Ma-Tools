@@ -8,10 +8,10 @@ const tools = [
     status: '可用'
   },
   {
-    name: '音频裁剪',
-    description: '精准裁剪片段，支持淡入淡出等高级选项。',
-    href: '#',
-    status: '敬请期待'
+    name: '12345台账分析',
+    description: '自动匹配权属部门，并导出分析报表。',
+    href: '#ledger-analysis',
+    status: '可用'
   },
   {
     name: '音频合并',
