@@ -32,6 +32,15 @@ const mimeToExtension = {
   'audio/x-flac': '.flac'
 }
 
+const imageMimeToExtension = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+  'image/webp': '.webp'
+}
+
 const ledgerValidDepartments = [
   '市政中心',
   '环卫中心',
@@ -109,6 +118,27 @@ async function createTempInputFile(file) {
   }
 
   return { inputPath, cleanup }
+}
+
+async function createTempImageFile(file) {
+  const workingDir = await mkdtemp(join(tmpdir(), 'niu-ma-watermark-'))
+
+  const originalExt = extname(file.originalname || '').toLowerCase()
+  const fallbackExt = imageMimeToExtension[file.mimetype] ?? ''
+  const ext = originalExt || fallbackExt || '.img'
+  const inputPath = join(workingDir, `input${ext}`)
+
+  await writeFile(inputPath, file.buffer)
+
+  const cleanup = async () => {
+    try {
+      await rm(workingDir, { recursive: true, force: true })
+    } catch (error) {
+      console.error('Failed to clean temporary working directory', error)
+    }
+  }
+
+  return { inputPath, cleanup, workingDir }
 }
 
 function normalizeBitrate(value) {
@@ -198,6 +228,11 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 app.use('/assets', express.static(join(staticRoot, 'assets')))
+
+const projectAssetsDir = resolve('assets')
+if (existsSync(projectAssetsDir)) {
+  app.use('/assets', express.static(projectAssetsDir))
+}
 app.get('/favicon.ico', (_req, res, next) => {
   res.sendFile(join(staticRoot, 'favicon.ico'), (error) => {
     if (error) {
@@ -451,6 +486,119 @@ app.post('/api/ledger-analysis', upload.single('file'), async (req, res) => {
     console.error('Failed to generate ledger workbook', error)
     return res.status(500).json({ ok: false, error: '生成分析文件失败，请稍后重试。' })
   }
+})
+
+app.post('/api/watermark', upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ ok: false, error: '未提供有效的图片文件。' })
+  }
+
+  let tempFile
+
+  try {
+    tempFile = await createTempImageFile(req.file)
+  } catch (error) {
+    console.error('Failed to persist uploaded image for watermarking', error)
+    return res
+      .status(500)
+      .json({ ok: false, error: '无法处理上传的图片文件，请稍后重试。' })
+  }
+
+  const cleanup = async () => {
+    if (!tempFile) {
+      return
+    }
+
+    const { cleanup: dispose } = tempFile
+    tempFile = null
+    await dispose()
+  }
+
+  const location = String(req.body?.location ?? '').trim()
+  const temperature = String(req.body?.temperature ?? '').trim()
+
+  const outputPath = join(tempFile.workingDir, 'output.png')
+  const pythonExecutable = process.env.PYTHON_EXECUTABLE || 'python3'
+  const scriptPath = resolve('watermark.py')
+
+  const args = [
+    scriptPath,
+    '--input',
+    tempFile.inputPath,
+    '--output',
+    outputPath,
+    '--location',
+    location,
+    '--temperature',
+    temperature
+  ]
+
+  try {
+    await new Promise((resolvePromise, rejectPromise) => {
+      const python = spawn(pythonExecutable, args, {
+        stdio: ['ignore', 'pipe', 'pipe']
+      })
+
+      let stderr = ''
+
+      python.stderr.on('data', (chunk) => {
+        stderr += chunk.toString()
+      })
+
+      python.on('error', (error) => {
+        rejectPromise(Object.assign(new Error('水印脚本执行失败'), { detail: error.message }))
+      })
+
+      python.on('close', (code) => {
+        if (code === 0) {
+          resolvePromise()
+        } else {
+          rejectPromise(
+            Object.assign(new Error(`Watermark script exited with code ${code}`), {
+              detail: stderr.trim() || undefined
+            })
+          )
+        }
+      })
+    })
+  } catch (error) {
+    console.error('Failed to generate watermark', error)
+    await cleanup()
+    return res.status(500).json({
+      ok: false,
+      error: '水印生成失败，请稍后重试。',
+      detail: error?.detail ?? error?.message
+    })
+  }
+
+  let outputBuffer
+
+  try {
+    outputBuffer = await readFile(outputPath)
+  } catch (error) {
+    console.error('Failed to read watermark output file', error)
+    await cleanup()
+    return res
+      .status(500)
+      .json({ ok: false, error: '生成的水印图片暂不可用，请稍后重试。' })
+  }
+
+  await cleanup()
+
+  const originalName = req.file.originalname || 'photo'
+  const baseName = sanitizeFilename(originalName.replace(/\.[^/.]+$/, '') || 'photo', 'photo')
+  const outputFileName = `${baseName}-watermark.png`
+
+  res.setHeader('Content-Type', 'image/png')
+  res.setHeader('Content-Disposition', encodeFilenameHeader(outputFileName))
+  res.setHeader('X-Watermark-Filename', encodeURIComponent(outputFileName))
+  res.setHeader('X-Watermark-Location', encodeURIComponent(location || ''))
+  if (temperature) {
+    res.setHeader('X-Watermark-Temperature', encodeURIComponent(temperature))
+  }
+  res.setHeader('Cache-Control', 'no-store')
+
+  return res.send(outputBuffer)
 })
 
 app.post('/api/convert', upload.single('file'), async (req, res) => {

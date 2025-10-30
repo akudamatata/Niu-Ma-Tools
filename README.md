@@ -1,6 +1,31 @@
 # Niu-Ma-Tools
 
-Niu-Ma-Tools 是一个保持原有 UI 体验的音视频小工具集合，使用内置 Hono Node 服务同时提供前端静态页面与后端 API，并预装原生 `ffmpeg` 以扩展媒体处理能力。
+Niu-Ma-Tools 是一个保持原有 UI 体验的音视频/影像小工具集合，使用内置 Hono Node 服务同时提供前端静态页面与后端 API，并预装原生 `ffmpeg` 以扩展媒体处理能力。
+
+## 自定义水印功能
+
+项目现在内置了一个「今日水印」风格的图片处理工具，支持根据当前时间、日期、星期、温度以及用户填写的地点信息自动生成水印。
+
+### 依赖准备
+
+- 本机需安装 `python3` 以及 [`Pillow`](https://python-pillow.org/) 图像处理库：
+
+  ```bash
+  pip install pillow
+  ```
+
+- 将提供的字体文件 **汉仪旗黑X2-65W.ttf** 拷贝到 `assets/fonts/` 目录（仓库内的 `assets/fonts/README.txt` 提供了放置路径说明）。
+- 将设计稿导出的 PNG 资源（`logo.png` 和 `separator.png`）放在 `assets/watermark/` 目录。仓库默认不包含这些二进制文件，请从提供的素材包中复制，或参考 `assets/watermark/README.md` 自行导出后放置。
+
+### 本地运行示例
+
+```bash
+npm install
+npm run build
+PYTHON_EXECUTABLE=python3 npm start
+```
+
+启动后访问 `http://localhost:8787`，在首页的「自定义水印」模块中上传图片，即可生成带有日期、时间、温度、地点等信息的水印图片。生成接口为 `POST /api/watermark`，前端示例代码位于 `src/web/features/watermark/`，后端生成逻辑在根目录的 `watermark.py` 与 `server/index.mjs` 中。
 
 ## Docker Compose 部署
 
