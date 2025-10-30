@@ -159,7 +159,8 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     originalName.replace(/\.[^/.]+$/, ''),
     'converted'
   )
-  const outputFileName = `${baseName}-niu-ma.mp3`
+  const uniqueSuffix = randomUUID().replace(/-/g, '').slice(0, 8)
+  const outputFileName = `${baseName}-${uniqueSuffix}-covered.mp3`
 
   let tempFile
 

@@ -113,7 +113,7 @@ export const useConversionStore = create<ConversionState>((set) => ({
         }
       })()) ||
       filenameFromContentDisposition ||
-      `${file.name.replace(/\.[^/.]+$/, '') || 'converted'}-niu-ma.mp3`
+      `${file.name.replace(/\.[^/.]+$/, '') || 'converted'}-${Date.now()}-covered.mp3`
 
     const url = URL.createObjectURL(blob)
 
