@@ -3,16 +3,53 @@ import cors from 'cors'
 import multer from 'multer'
 import ffmpegPath from 'ffmpeg-static'
 import { spawn } from 'child_process'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { resolve, join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { resolve, join, extname } from 'node:path'
 
 const appName = process.env.APP_NAME ?? 'Niu Ma Tools'
 const port = Number.parseInt(process.env.PORT ?? '8787', 10)
 const staticRoot = resolve(process.env.STATIC_ROOT ?? 'dist')
 const logDir = process.env.LOG_DIR ?? '/data/logs'
 const upload = multer({ storage: multer.memoryStorage() })
+
+const mimeToExtension = {
+  'audio/mpeg': '.mp3',
+  'audio/mp3': '.mp3',
+  'audio/wav': '.wav',
+  'audio/x-wav': '.wav',
+  'audio/ogg': '.ogg',
+  'audio/webm': '.webm',
+  'audio/mp4': '.m4a',
+  'audio/m4a': '.m4a',
+  'audio/x-m4a': '.m4a',
+  'audio/aac': '.aac',
+  'audio/flac': '.flac',
+  'audio/x-flac': '.flac'
+}
+
+async function createTempInputFile(file) {
+  const workingDir = await mkdtemp(join(tmpdir(), 'niu-ma-audio-'))
+
+  const originalExt = extname(file.originalname || '').toLowerCase()
+  const fallbackExt = mimeToExtension[file.mimetype] ?? ''
+  const ext = originalExt || fallbackExt || '.tmp'
+  const inputPath = join(workingDir, `input${ext}`)
+
+  await writeFile(inputPath, file.buffer)
+
+  const cleanup = async () => {
+    try {
+      await rm(workingDir, { recursive: true, force: true })
+    } catch (error) {
+      console.error('Failed to clean temporary working directory', error)
+    }
+  }
+
+  return { inputPath, cleanup }
+}
 
 function normalizeBitrate(value) {
   if (!value) {
@@ -124,7 +161,28 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
   )
   const outputFileName = `${baseName}-niu-ma.mp3`
 
-  const ffmpegArgs = ['-i', 'pipe:0']
+  let tempFile
+
+  try {
+    tempFile = await createTempInputFile(req.file)
+  } catch (error) {
+    console.error('Failed to persist uploaded audio for conversion', error)
+    return res
+      .status(500)
+      .json({ ok: false, error: '无法处理上传的音频文件，请稍后重试。' })
+  }
+
+  const cleanupTempFile = () => {
+    if (!tempFile) {
+      return
+    }
+
+    const { cleanup } = tempFile
+    tempFile = null
+    cleanup()
+  }
+
+  const ffmpegArgs = ['-y', '-i', tempFile.inputPath, '-vn']
 
   if (bitrate) {
     ffmpegArgs.push('-b:a', bitrate)
@@ -138,7 +196,7 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
 
   const executable = ffmpegPath || 'ffmpeg'
   const ffmpeg = spawn(executable, ffmpegArgs, {
-    stdio: ['pipe', 'pipe', 'inherit']
+    stdio: ['ignore', 'pipe', 'inherit']
   })
 
   let finished = false
@@ -154,6 +212,8 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     finished = true
     console.error('Failed to convert audio file', error)
 
+    cleanupTempFile()
+
     if (res.headersSent || res.writableEnded) {
       if (!res.writableEnded) {
         res.destroy(error)
@@ -168,15 +228,13 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
 
   ffmpeg.on('error', handleError)
 
-  ffmpeg.stdin.on('error', (error) => {
-    handleError(error)
-  })
-
   ffmpeg.stdout.on('error', (error) => {
     handleError(error)
   })
 
   ffmpeg.on('close', (code) => {
+    cleanupTempFile()
+
     if (code !== 0) {
       handleError(new Error(`FFmpeg exited with code ${code}`))
     } else if (!finished) {
@@ -194,15 +252,10 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     if (!ffmpeg.killed) {
       ffmpeg.kill('SIGKILL')
     }
+    cleanupTempFile()
   })
 
   ffmpeg.stdout.pipe(res)
-
-  try {
-    ffmpeg.stdin.end(req.file.buffer)
-  } catch (error) {
-    handleError(error)
-  }
 })
 
 app.use(express.static(staticRoot))
