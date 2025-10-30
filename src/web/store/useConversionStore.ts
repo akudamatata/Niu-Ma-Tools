@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { createFFmpeg, type FFmpeg } from '@ffmpeg/ffmpeg'
 
 export type ConversionStatus = 'idle' | 'converting' | 'success' | 'error'
 
@@ -29,20 +30,40 @@ function formatFileSize(bytes: number) {
   return `${value.toFixed(2)} ${units[power]}`
 }
 
-let worker: Worker | null = null
+let ffmpegInstance: FFmpeg | null = null
+let loadPromise: Promise<void> | null = null
+let commandQueue: Promise<void> = Promise.resolve()
 
-function ensureWorker() {
+const CORE_VERSION = '0.12.6'
+const FFMPEG_BASE_URL = `https://unpkg.com/@ffmpeg/core-st@${CORE_VERSION}/dist/`
+
+async function ensureFFmpeg() {
   if (typeof window === 'undefined') {
-    return null
+    throw new Error('当前环境不支持 Web 转码。')
   }
 
-  if (!worker) {
-    worker = new Worker(new URL('../features/audio-convert/ffmpeg.worker.ts', import.meta.url), {
-      type: 'classic'
+  if (!ffmpegInstance) {
+    ffmpegInstance = createFFmpeg({
+      log: true,
+      mainName: 'main',
+      corePath: `${FFMPEG_BASE_URL}ffmpeg-core.js`,
+      wasmPath: `${FFMPEG_BASE_URL}ffmpeg-core.wasm`,
+      workerPath: `${FFMPEG_BASE_URL}ffmpeg-core.worker.js`
     })
   }
 
-  return worker
+  if (!loadPromise) {
+    loadPromise = ffmpegInstance
+      .load()
+      .catch((error) => {
+        ffmpegInstance = null
+        loadPromise = null
+        throw error
+      })
+  }
+
+  await loadPromise
+  return ffmpegInstance
 }
 
 export const useConversionStore = create<ConversionState>((set) => ({
@@ -51,63 +72,62 @@ export const useConversionStore = create<ConversionState>((set) => ({
   error: null,
   reset: () => set({ status: 'idle', result: null, error: null }),
   convert: async (file: File, bitrate: string) => {
-    const ffmpegWorker = ensureWorker()
-
-    if (!ffmpegWorker) {
-      set({
-        status: 'error',
-        error: { message: '当前环境不支持 Web Worker 转码。' },
-        result: null
-      })
-      return
-    }
-
-    const id = crypto.randomUUID()
-
     set({ status: 'converting', error: null, result: null })
 
-    const fileBuffer = await file.arrayBuffer()
+    const task = async () => {
+      const ffmpeg = await ensureFFmpeg()
 
-    const response = await new Promise<{ status: string; payload: any }>((resolve) => {
-      const handleMessage = (event: MessageEvent) => {
-        if (event.data?.id !== id) return
-        ffmpegWorker.removeEventListener('message', handleMessage)
-        resolve(event.data)
-      }
+      const id = crypto.randomUUID()
+      const inputFile = `${id}-input`
+      const outputFile = `${id}-output.mp3`
 
-      ffmpegWorker.addEventListener('message', handleMessage)
+      try {
+        const fileBuffer = await file.arrayBuffer()
 
-      ffmpegWorker.postMessage({
-        id,
-        fileData: fileBuffer,
-        inputName: file.name,
-        bitrate
-      }, [fileBuffer])
-    })
+        ffmpeg.FS('writeFile', inputFile, new Uint8Array(fileBuffer))
+        await ffmpeg.run('-i', inputFile, '-b:a', bitrate, outputFile)
+        const data = ffmpeg.FS('readFile', outputFile)
+        const arrayBuffer = data.buffer.slice(
+          data.byteOffset,
+          data.byteOffset + data.byteLength
+        ) as ArrayBuffer
 
-    if (response.status === 'error') {
-      set({
-        status: 'error',
-        error: {
-          message: '转换失败，请重试。',
-          detail: response.payload?.message
+        const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' })
+        const url = URL.createObjectURL(blob)
+        const filename = `${file.name.replace(/\.[^/.]+$/, '') || 'converted'}-niu-ma.mp3`
+
+        set({
+          status: 'success',
+          result: {
+            url,
+            filename,
+            size: formatFileSize(blob.size)
+          }
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '未知错误'
+        set({
+          status: 'error',
+          error: {
+            message: '转换失败，请重试。',
+            detail: message
+          }
+        })
+      } finally {
+        try {
+          ffmpeg.FS('unlink', inputFile)
+        } catch {
+          // ignore cleanup errors
         }
-      })
-      return
-    }
 
-    const payload = response.payload as { buffer: ArrayBuffer; inputName: string }
-    const blob = new Blob([payload.buffer], { type: 'audio/mpeg' })
-    const url = URL.createObjectURL(blob)
-    const filename = `${payload.inputName.replace(/\.[^/.]+$/, '') || 'converted'}-niu-ma.mp3`
-
-    set({
-      status: 'success',
-      result: {
-        url,
-        filename,
-        size: formatFileSize(blob.size)
+        try {
+          ffmpeg.FS('unlink', outputFile)
+        } catch {
+          // ignore cleanup errors
+        }
       }
-    })
+    }
+    commandQueue = commandQueue.then(task, task)
+    await commandQueue
   }
 }))
