@@ -7,6 +7,7 @@ const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobal
 
 const ffmpeg = createFFmpeg({
   log: true,
+  mainName: 'main',
   corePath: coreURL,
   wasmPath: wasmURL,
   workerPath: workerURL
