@@ -7,9 +7,13 @@ const ACCEPTED_TYPES = [
   'audio/ogg',
   'audio/webm',
   'audio/mp4',
+  'audio/m4a',
+  'audio/x-m4a',
   'audio/aac',
   'audio/flac'
 ]
+
+const ACCEPTED_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.aac', '.flac', '.m4a', '.webm']
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return '0 B'
@@ -30,7 +34,13 @@ export function ConvertForm() {
   const acceptFile = (file: File | undefined) => {
     if (!file) return
 
-    if (!ACCEPTED_TYPES.includes(file.type)) {
+    const fileName = file.name.toLowerCase()
+    const hasValidType = ACCEPTED_TYPES.includes(file.type)
+    const hasValidExtension = ACCEPTED_EXTENSIONS.some((extension) =>
+      fileName.endsWith(extension)
+    )
+
+    if (!hasValidType && !hasValidExtension) {
       setFileError('暂不支持此类型的音频文件。')
       setSelectedFile(null)
       return
@@ -86,7 +96,7 @@ export function ConvertForm() {
             ref={fileInputRef}
             id="audio-file"
             type="file"
-            accept={ACCEPTED_TYPES.join(',')}
+            accept={[...ACCEPTED_TYPES, ...ACCEPTED_EXTENSIONS].join(',')}
             onChange={handleFileChange}
             className="sr-only"
           />
@@ -134,7 +144,7 @@ export function ConvertForm() {
                 点击选择文件
               </span>
             </p>
-            <p className="mt-2 text-xs text-white/60">支持 MP3、WAV、OGG、AAC 等常见格式</p>
+            <p className="mt-2 text-xs text-white/60">支持 MP3、WAV、OGG、M4A、AAC 等常见格式</p>
           </div>
           {selectedFile && (
             <p className="mt-3 text-sm text-white/70">
