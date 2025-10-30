@@ -147,10 +147,12 @@ function sanitizeFilename(name, fallback = 'converted') {
   return base.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_')
 }
 
-function encodeFilenameHeader(name) {
-  const sanitized = name.replace(/"/g, "'")
-  const encoded = encodeURIComponent(name)
-  return `attachment; filename="${sanitized}"; filename*=UTF-8''${encoded}`
+function encodeFilenameHeader(name, fallback = 'download') {
+  const sanitized = sanitizeFilename(name, fallback)
+  const asciiFallback = sanitized.replace(/[^ -~]+/g, '_')
+  const safeAscii = asciiFallback.length > 0 ? asciiFallback : fallback
+  const encoded = encodeURIComponent(sanitized)
+  return `attachment; filename="${safeAscii}"; filename*=UTF-8''${encoded}`
 }
 
 function assignLedgerDepartment(content) {
