@@ -7,9 +7,7 @@ import { staticRoute } from './routes/static'
 
 export interface EnvBindings {
   APP_NAME: string
-  __STATIC_CONTENT: KVNamespace
-  __STATIC_CONTENT_MANIFEST: string
-  ASSETS?: Fetcher
+  ASSETS: Fetcher
   LOGS?: KVNamespace
   R2?: R2Bucket
   AI?: unknown

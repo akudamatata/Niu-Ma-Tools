@@ -2,12 +2,9 @@ name = "niu-ma-tools"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
-[site]
-bucket = "./dist"
-
 [assets]
 binding = "ASSETS"
-dir = "./dist"
+directory = "./dist"
 notFoundHandling = "none"
 
 [vars]
