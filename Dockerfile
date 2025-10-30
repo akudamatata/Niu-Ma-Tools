@@ -23,6 +23,8 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY server ./server
+COPY watermark.py ./
+COPY assets ./assets
 
 EXPOSE 8787
 
