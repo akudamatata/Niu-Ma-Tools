@@ -1,19 +1,18 @@
-import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
+import express from 'express'
+import cors from 'cors'
+import multer from 'multer'
+import ffmpegPath from 'ffmpeg-static'
+import { spawn } from 'child_process'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { resolve, join, extname } from 'node:path'
-import { tmpdir } from 'node:os'
-import { spawn } from 'node:child_process'
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
-import { serve } from '@hono/node-server'
-import { serveStatic } from '@hono/node-server/serve-static'
+import { resolve, join } from 'node:path'
 
 const appName = process.env.APP_NAME ?? 'Niu Ma Tools'
 const port = Number.parseInt(process.env.PORT ?? '8787', 10)
 const staticRoot = resolve(process.env.STATIC_ROOT ?? 'dist')
 const logDir = process.env.LOG_DIR ?? '/data/logs'
-const tempRoot = tmpdir()
+const upload = multer({ storage: multer.memoryStorage() })
 
 function normalizeBitrate(value) {
   if (!value) {
@@ -24,6 +23,23 @@ function normalizeBitrate(value) {
 
   if (/^(?:96|128|160|192|224|256|320)k$/.test(normalized)) {
     return normalized
+  }
+
+  return null
+}
+
+function normalizeQuality(value) {
+  if (value === undefined || value === null) {
+    return null
+  }
+
+  const quality = Number.parseInt(String(value).trim(), 10)
+  if (Number.isNaN(quality)) {
+    return null
+  }
+
+  if (quality >= 0 && quality <= 9) {
+    return String(quality)
   }
 
   return null
@@ -40,67 +56,32 @@ function encodeFilenameHeader(name) {
   return `attachment; filename="${sanitized}"; filename*=UTF-8''${encoded}`
 }
 
-function runFFmpeg(inputPath, outputPath, bitrate) {
-  return new Promise((resolvePromise, rejectPromise) => {
-    const args = ['-y', '-i', inputPath, '-b:a', bitrate, outputPath]
-    const ffmpegProcess = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] })
+const app = express()
 
-    let errorOutput = ''
-
-    ffmpegProcess.stderr.on('data', (chunk) => {
-      errorOutput += chunk.toString()
-    })
-
-    ffmpegProcess.on('error', (error) => {
-      rejectPromise(error)
-    })
-
-    ffmpegProcess.on('close', (code) => {
-      if (code === 0) {
-        resolvePromise()
-      } else {
-        rejectPromise(new Error(`FFmpeg exited with code ${code}: ${errorOutput}`))
-      }
-    })
+app.use(cors())
+app.use(express.json())
+app.use('/assets', express.static(join(staticRoot, 'assets')))
+app.get('/favicon.ico', (_req, res, next) => {
+  res.sendFile(join(staticRoot, 'favicon.ico'), (error) => {
+    if (error) {
+      next()
+    }
   })
-}
+})
 
-async function cleanupTempFiles(...paths) {
-  await Promise.all(
-    paths.map(async (path) => {
-      if (!path) return
+app.get('/api', (_req, res) => {
+  res.json({ ok: true, name: appName })
+})
 
-      try {
-        await unlink(path)
-      } catch (error) {
-        if (error && error.code !== 'ENOENT') {
-          console.warn('Failed to cleanup temp file', path, error)
-        }
-      }
-    })
-  )
-}
+app.post('/api/log', async (req, res) => {
+  const payload = req.body
 
-const app = new Hono()
-
-app.use('*', cors())
-app.use('/assets/*', serveStatic({ root: staticRoot }))
-app.use('/favicon.ico', serveStatic({ root: staticRoot, path: 'favicon.ico' }))
-
-app.get('/api', (c) => c.json({ ok: true, name: appName }))
-
-app.post('/api/log', async (c) => {
-  let payload
-
-  try {
-    payload = await c.req.json()
-  } catch (error) {
-    console.error('Failed to parse log payload', error)
-    return c.json({ ok: false, error: 'Invalid log payload' }, 400)
-  }
-
-  if (!payload || typeof payload.message !== 'string' || payload.message.trim().length === 0) {
-    return c.json({ ok: false, error: 'Invalid log payload' }, 400)
+  if (
+    !payload ||
+    typeof payload.message !== 'string' ||
+    payload.message.trim().length === 0
+  ) {
+    return res.status(400).json({ ok: false, error: 'Invalid log payload' })
   }
 
   const logEntry = {
@@ -120,85 +101,125 @@ app.post('/api/log', async (c) => {
     await writeFile(filePath, JSON.stringify(logEntry, null, 2), 'utf8')
   } catch (error) {
     console.error('Failed to persist log entry', error)
-    return c.json({ ok: false, error: 'Failed to persist log entry' }, 500)
+    return res
+      .status(500)
+      .json({ ok: false, error: 'Failed to persist log entry' })
   }
 
-  return c.json({ ok: true })
+  return res.json({ ok: true })
 })
 
-app.post('/api/convert', async (c) => {
-  let formData
-
-  try {
-    formData = await c.req.formData()
-  } catch (error) {
-    console.error('Failed to parse convert form data', error)
-    return c.json({ ok: false, error: '请求数据格式不正确。' }, 400)
+app.post('/api/convert', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ ok: false, error: '未提供有效的音频文件。' })
   }
 
-  const file = formData.get('file')
-  const bitrateValue = formData.get('bitrate') ?? '192k'
-  const bitrate = normalizeBitrate(bitrateValue)
+  const bitrate = normalizeBitrate(req.body?.bitrate)
+  const quality = normalizeQuality(req.body?.quality)
 
-  if (!(file instanceof File)) {
-    return c.json({ ok: false, error: '未提供有效的音频文件。' }, 400)
+  const originalName = req.file.originalname || 'audio'
+  const baseName = sanitizeFilename(
+    originalName.replace(/\.[^/.]+$/, ''),
+    'converted'
+  )
+  const outputFileName = `${baseName}-niu-ma.mp3`
+
+  const ffmpegArgs = ['-i', 'pipe:0']
+
+  if (bitrate) {
+    ffmpegArgs.push('-b:a', bitrate)
+  } else if (quality) {
+    ffmpegArgs.push('-qscale:a', quality)
+  } else {
+    ffmpegArgs.push('-b:a', '192k')
   }
 
-  if (!bitrate) {
-    return c.json({ ok: false, error: '比特率参数无效。' }, 400)
-  }
+  ffmpegArgs.push('-f', 'mp3', 'pipe:1')
 
-  const originalName = file.name || 'audio'
-  const id = randomUUID()
-  const inputExt = extname(originalName) || '.tmp'
-  const safeBaseName = sanitizeFilename(originalName.replace(/\.[^/.]+$/, ''), 'converted')
-  const outputFileName = `${safeBaseName}-niu-ma.mp3`
-  const inputPath = join(tempRoot, `${id}-input${inputExt}`)
-  const outputPath = join(tempRoot, `${id}-output.mp3`)
+  const executable = ffmpegPath || 'ffmpeg'
+  const ffmpeg = spawn(executable, ffmpegArgs, {
+    stdio: ['pipe', 'pipe', 'inherit']
+  })
 
-  let outputBuffer = null
+  let finished = false
 
-  try {
-    const buffer = Buffer.from(await file.arrayBuffer())
-    await writeFile(inputPath, buffer)
-    await runFFmpeg(inputPath, outputPath, bitrate)
-    outputBuffer = await readFile(outputPath)
-  } catch (error) {
+  const handleError = (error) => {
+    if (finished) {
+      if (!res.writableEnded) {
+        res.destroy(error)
+      }
+      return
+    }
+
+    finished = true
     console.error('Failed to convert audio file', error)
-    await cleanupTempFiles(inputPath, outputPath)
-    return c.json({ ok: false, error: '音频转换失败，请稍后重试。', detail: error?.message ?? String(error) }, 500)
+
+    if (res.headersSent || res.writableEnded) {
+      if (!res.writableEnded) {
+        res.destroy(error)
+      }
+      return
+    }
+
+    res
+      .status(500)
+      .json({ ok: false, error: '音频转换失败，请稍后重试。', detail: error?.message })
   }
 
-  await cleanupTempFiles(inputPath, outputPath)
+  ffmpeg.on('error', handleError)
 
-  if (!outputBuffer) {
-    return c.json({ ok: false, error: '音频转换失败，请稍后重试。' }, 500)
+  ffmpeg.stdin.on('error', (error) => {
+    handleError(error)
+  })
+
+  ffmpeg.stdout.on('error', (error) => {
+    handleError(error)
+  })
+
+  ffmpeg.on('close', (code) => {
+    if (code !== 0) {
+      handleError(new Error(`FFmpeg exited with code ${code}`))
+    } else if (!finished) {
+      finished = true
+    }
+  })
+
+  res.setHeader('Content-Type', 'audio/mpeg')
+  res.setHeader('Content-Disposition', encodeFilenameHeader(outputFileName))
+  res.setHeader('X-Converted-Filename', encodeURIComponent(outputFileName))
+  res.setHeader('X-Original-Filename', encodeURIComponent(originalName))
+  res.setHeader('Cache-Control', 'no-store')
+
+  res.on('close', () => {
+    if (!ffmpeg.killed) {
+      ffmpeg.kill('SIGKILL')
+    }
+  })
+
+  ffmpeg.stdout.pipe(res)
+
+  try {
+    ffmpeg.stdin.end(req.file.buffer)
+  } catch (error) {
+    handleError(error)
   }
-
-  const headers = {
-    'Content-Type': 'audio/mpeg',
-    'Content-Length': String(outputBuffer.length),
-    'Content-Disposition': encodeFilenameHeader(outputFileName),
-    'X-Converted-Filename': encodeURIComponent(outputFileName),
-    'X-Original-Filename': encodeURIComponent(originalName)
-  }
-
-  return c.body(outputBuffer, 200, headers)
 })
 
-app.get('*', async (c) => {
+app.use(express.static(staticRoot))
+
+app.get('*', async (_req, res) => {
   try {
     const html = await readFile(join(staticRoot, 'index.html'), 'utf8')
-    return c.html(html)
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    res.send(html)
   } catch (error) {
     console.error('Failed to load application UI', error)
-    return c.text('Application UI is not built. Run "npm run build" first.', 500)
+    res
+      .status(500)
+      .send('Application UI is not built. Run "npm run build" first.')
   }
 })
 
-console.log(`Starting Niu Ma Tools server on port ${port}`)
-
-serve({
-  fetch: app.fetch,
-  port
+app.listen(port, () => {
+  console.log(`Starting Niu Ma Tools server on port ${port}`)
 })
