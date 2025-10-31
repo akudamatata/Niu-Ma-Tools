@@ -239,18 +239,21 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     base_image = Image.open(image_path).convert('RGB')
     width, height = base_image.size
 
-    overlay_height = max(int(height * 0.18), 200)
+    base_dim = min(width, height)
+    overlay_base_height = max(int(base_dim * 0.24), 160)
     padding_x = max(int(width * 0.04), 48)
-    padding_y = 32
+    right_padding = padding_x
+    top_padding = 32
+    bottom_padding = 32
 
-    overlay = Image.new('RGBA', (width, overlay_height), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
+    scratch = Image.new('RGBA', (width, overlay_base_height or 1), (0, 0, 0, 0))
+    draw_measure = ImageDraw.Draw(scratch)
 
     primary_color = (255, 255, 255, 255)
     secondary_color = (176, 176, 176, 255)
     separator_color = (251, 187, 49, 255)
 
-    time_font_size = min(int(overlay_height * 0.42), 128)
+    time_font_size = min(int(overlay_base_height * 0.42), 128)
     time_font = load_font(time_font_size)
     small_font_size = max(int(time_font_size * 0.35), 28)
     small_font = load_font(small_font_size)
@@ -258,9 +261,8 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     location_font = load_font(location_font_size)
 
     time_text = info['time']
-    time_position = (padding_x, padding_y)
-    draw.text(time_position, time_text, font=time_font, fill=primary_color)
-    time_box = draw.textbbox(time_position, time_text, font=time_font)
+    time_position = (padding_x, top_padding)
+    time_box = draw_measure.textbbox(time_position, time_text, font=time_font)
 
     date_line = info['date']
     temperature = temperature.strip()
@@ -268,8 +270,8 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     if temperature:
         weekday_line = f"{weekday_line}  {temperature}"
 
-    bbox1 = draw.textbbox((0, 0), date_line, font=small_font)
-    bbox2 = draw.textbbox((0, 0), weekday_line, font=small_font)
+    bbox1 = draw_measure.textbbox((0, 0), date_line, font=small_font)
+    bbox2 = draw_measure.textbbox((0, 0), weekday_line, font=small_font)
     date_height = bbox1[3] - bbox1[1]
     weekday_height = bbox2[3] - bbox2[1]
     line_spacing = 6
@@ -281,43 +283,57 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     alpha_channel = separator_source.split()[-1]
     separator_image = Image.new('RGBA', separator_source.size, separator_color)
     separator_image.putalpha(alpha_channel)
-    separator_x = time_box[2] + int(width * 0.02)
-    separator_y = padding_y
-    paste_centered(overlay, separator_image, (separator_x, separator_y))
+    separator_x = time_box[2] + int(width * 0.01)
 
     content_start_x = separator_x + separator_width + 14
-    date_line_y = padding_y - bbox1[1]
-    weekday_line_y = padding_y + date_height + line_spacing - bbox2[1]
-    draw.text((content_start_x, date_line_y), date_line, font=small_font, fill=primary_color)
-    draw.text((content_start_x, weekday_line_y), weekday_line, font=small_font, fill=primary_color)
 
     security_code = generate_security_code()
     logo_image = render_logo_image(small_font_size, security_code, primary_color, secondary_color)
 
-    logo_target_height = max(int(overlay_height * 0.3), 1)
+    logo_target_height = max(int(overlay_base_height * 0.3), 1)
     if logo_image.height != logo_target_height:
         logo_target_width = max(int(logo_image.width * (logo_target_height / logo_image.height)), 1)
         logo_image = logo_image.resize((logo_target_width, logo_target_height), Image.LANCZOS)
 
-    logo_x = width - padding_x - logo_image.width
-    logo_y = overlay_height - padding_y - logo_image.height
+    logo_width, logo_height = logo_image.size
+    logo_x = width - right_padding - logo_width
 
     available_width = max(logo_x - content_start_x - 24, int(width * 0.2))
     location_text = location.strip() or '未知地点'
-    wrapped_location = wrap_text(draw, location_text, location_font, available_width)
+    wrapped_location = wrap_text(draw_measure, location_text, location_font, available_width)
 
     while (
         wrapped_location
-        and any(draw.textlength(line, font=location_font) > available_width for line in wrapped_location)
+        and any(draw_measure.textlength(line, font=location_font) > available_width for line in wrapped_location)
         and location_font_size > 18
     ):
         location_font_size -= 2
         location_font = load_font(location_font_size)
-        wrapped_location = wrap_text(draw, location_text, location_font, available_width)
+        wrapped_location = wrap_text(draw_measure, location_text, location_font, available_width)
 
     location_lines = wrapped_location or [location_text]
     line_height = location_font_size + 6
-    location_start_y = padding_y + total_date_height + 12
+    location_height = len(location_lines) * line_height
+
+    total_left_height = total_date_height + location_height
+    content_height = max(total_left_height, logo_height)
+    overlay_height = top_padding + content_height + bottom_padding
+
+    overlay = Image.new('RGBA', (width, overlay_height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    draw.text(time_position, time_text, font=time_font, fill=primary_color)
+    time_box = draw.textbbox(time_position, time_text, font=time_font)
+
+    separator_y = top_padding
+    paste_centered(overlay, separator_image, (separator_x, separator_y))
+
+    date_line_y = top_padding - bbox1[1]
+    weekday_line_y = top_padding + date_height + line_spacing - bbox2[1]
+    draw.text((content_start_x, date_line_y), date_line, font=small_font, fill=primary_color)
+    draw.text((content_start_x, weekday_line_y), weekday_line, font=small_font, fill=primary_color)
+
+    location_start_y = top_padding + total_date_height + 6
 
     for index, line in enumerate(location_lines):
         draw.text(
@@ -327,6 +343,7 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
             fill=primary_color,
         )
 
+    logo_y = top_padding + content_height - logo_height
     paste_centered(overlay, logo_image, (logo_x, logo_y))
 
     base_rgba = base_image.convert('RGBA')
