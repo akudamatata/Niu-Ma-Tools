@@ -96,9 +96,9 @@ def compute_layout_sizes(
     bottom_padding: int,
 ) -> Dict[str, object]:
     separator_width = max(int(width * 0.0035), 4)
-    separator_gap = max(int(width * 0.01), 10)
-    after_separator_gap = max(int(width * 0.015), 14)
-    logo_gap = max(int(width * 0.018), 18)
+    separator_gap = max(int(width * 0.012), 6)
+    after_separator_gap = max(int(width * 0.018), 8)
+    logo_gap = max(int(width * 0.02), 12)
     location_gap = 12
     location_line_spacing = 6
     date_line_spacing = 6
@@ -347,10 +347,10 @@ def generate_watermark(
 
     base_dim = min(width, height)
     overlay_base_height = max(int(base_dim * 0.24), 1)
-    padding_x = max(int(width * 0.035), 36)
-    right_padding = max(int(width * 0.02), 20)
-    top_padding = 28
-    bottom_padding = 28
+    padding_x = max(int(width * 0.05), 24)
+    right_padding = max(int(width * 0.03), 16)
+    top_padding = 32
+    bottom_padding = 32
 
     scratch = Image.new('RGBA', (width, overlay_base_height or 1), (0, 0, 0, 0))
     draw_measure = ImageDraw.Draw(scratch)
