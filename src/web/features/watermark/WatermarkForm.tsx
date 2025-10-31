@@ -70,7 +70,7 @@ export function WatermarkForm() {
       <div className="space-y-3">
         <label className="block text-sm font-medium text-white/80">选择照片</label>
         <div
-          className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/40 bg-white/5 px-6 py-8 text-center transition hover:border-white/70 hover:bg-white/10"
+          className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/40 bg-white/5 px-6 py-8 text-center transition hover:border-white/70 hover:bg-white/10"
           onClick={() => fileInputRef.current?.click()}
         >
           <input
@@ -87,7 +87,7 @@ export function WatermarkForm() {
           {selectedFile ? (
             <div className="w-full text-center">
               <p
-                className="mx-auto max-w-full truncate text-sm text-sky-200"
+                className="mx-auto w-full truncate text-sm text-sky-200"
                 title={selectedFile.name}
               >
                 当前选择：{selectedFile.name}
