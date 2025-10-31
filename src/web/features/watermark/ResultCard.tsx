@@ -45,11 +45,11 @@ export function ResultCard({ status, result, error }: Props) {
           <h3 className="text-lg font-semibold text-white">生成成功</h3>
           <p className="mt-1 text-sm text-white/70">以下预览即为生成结果，点击下方按钮可下载原图尺寸。</p>
         </div>
-        <figure className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+        <figure className="relative flex aspect-[9/16] w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4">
           <img
             src={result.url}
             alt="生成的水印图片预览"
-            className="h-auto w-full object-contain"
+            className="max-h-full max-w-full object-contain"
             loading="lazy"
           />
         </figure>

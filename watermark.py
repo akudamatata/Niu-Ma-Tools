@@ -337,6 +337,10 @@ def generate_watermark(
     location: str,
     temperature: str,
     weather: str,
+    *,
+    date_text: str = '',
+    time_text: str = '',
+    weekday_text: str = '',
 ) -> None:
     if not Path(image_path).exists():
         raise FileNotFoundError(f'输入图片不存在：{image_path}')
@@ -365,11 +369,12 @@ def generate_watermark(
     small_font = load_font(small_font_size)
     location_font_size = max(int(small_font_size * 0.95), 1)
 
-    time_text = info['time']
-    date_line = info['date']
+    time_text = time_text.strip() or info['time']
+    date_line = date_text.strip() or info['date']
     temperature = temperature.strip()
     weather = weather.strip()
-    weekday_parts = [f"星期{info['weekday']}"]
+    weekday_label = weekday_text.strip() or f"星期{info['weekday']}"
+    weekday_parts = [weekday_label]
     if weather:
         weekday_parts.append(weather)
     if temperature:
@@ -518,11 +523,23 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument('--location', default='', help='Location text to display.')
     parser.add_argument('--temperature', default='', help='Temperature text to display.')
     parser.add_argument('--weather', default='', help='Weather condition text to display.')
+    parser.add_argument('--date', default='', help='Custom date text to display.')
+    parser.add_argument('--time', default='', help='Custom time text to display.')
+    parser.add_argument('--weekday', default='', help='Custom weekday text to display.')
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     try:
-        generate_watermark(args.input, args.output, args.location, args.temperature, args.weather)
+        generate_watermark(
+            args.input,
+            args.output,
+            args.location,
+            args.temperature,
+            args.weather,
+            date_text=args.date,
+            time_text=args.time,
+            weekday_text=args.weekday,
+        )
     except Exception as exc:  # pragma: no cover - runtime safeguard
         sys.stderr.write(f'水印生成失败：{exc}\n')
         return 1

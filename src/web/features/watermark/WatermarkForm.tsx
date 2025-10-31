@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useWatermarkStore } from '../../store/useWatermarkStore'
 
 export function WatermarkForm() {
@@ -7,6 +7,19 @@ export function WatermarkForm() {
   const [location, setLocation] = useState('')
   const [temperature, setTemperature] = useState('26℃')
   const [weather, setWeather] = useState('多云')
+  const datetimeDefaults = useMemo(() => {
+    const now = new Date()
+    const pad = (value: number) => value.toString().padStart(2, '0')
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'] as const
+    return {
+      date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+      time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      weekday: `星期${weekdays[now.getDay()]}`
+    }
+  }, [])
+  const [dateText, setDateText] = useState(datetimeDefaults.date)
+  const [timeText, setTimeText] = useState(datetimeDefaults.time)
+  const [weekdayText, setWeekdayText] = useState(datetimeDefaults.weekday)
   const status = useWatermarkStore((state) => state.status)
   const error = useWatermarkStore((state) => state.error)
   const generate = useWatermarkStore((state) => state.generate)
@@ -36,8 +49,20 @@ export function WatermarkForm() {
     await generate(selectedFile, {
       location: location.trim(),
       temperature: temperature.trim(),
-      weather: weather.trim()
+      weather: weather.trim(),
+      date: dateText.trim(),
+      time: timeText.trim(),
+      weekday: weekdayText.trim()
     })
+  }
+
+  function restoreDatetimeDefaults() {
+    const now = new Date()
+    const pad = (value: number) => value.toString().padStart(2, '0')
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'] as const
+    setDateText(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`)
+    setTimeText(`${pad(now.getHours())}:${pad(now.getMinutes())}`)
+    setWeekdayText(`星期${weekdays[now.getDay()]}`)
   }
 
   return (
@@ -100,6 +125,43 @@ export function WatermarkForm() {
         </label>
       </div>
 
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-white/80">时间信息</h3>
+          <p className="mt-1 text-xs text-white/60">可自定义日期、时间与星期显示内容，留空则使用当前时间。</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="space-y-2 text-sm text-white/80">
+            <span>日期</span>
+            <input
+              type="date"
+              value={dateText}
+              onChange={(event) => setDateText(event.target.value)}
+              className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-sky-300 focus:outline-none"
+            />
+          </label>
+          <label className="space-y-2 text-sm text-white/80">
+            <span>时间</span>
+            <input
+              type="time"
+              value={timeText}
+              onChange={(event) => setTimeText(event.target.value)}
+              className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-sky-300 focus:outline-none"
+            />
+          </label>
+          <label className="space-y-2 text-sm text-white/80">
+            <span>星期</span>
+            <input
+              type="text"
+              value={weekdayText}
+              onChange={(event) => setWeekdayText(event.target.value)}
+              placeholder="如：星期四"
+              className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-sky-300 focus:outline-none"
+            />
+          </label>
+        </div>
+      </div>
+
       {error ? (
         <div className="rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
           <p className="font-semibold">{error.message}</p>
@@ -123,6 +185,7 @@ export function WatermarkForm() {
             if (fileInputRef.current) {
               fileInputRef.current.value = ''
             }
+            restoreDatetimeDefaults()
           }}
           className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/10"
         >
