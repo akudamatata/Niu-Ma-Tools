@@ -15,7 +15,7 @@ Niu-Ma-Tools 是一个保持原有 UI 体验的音视频/影像小工具集合�
   ```
 
 - 将提供的字体文件 **汉仪旗黑X2-65W.ttf** 拷贝到 `assets/fonts/` 目录（仓库内的 `assets/fonts/README.txt` 提供了放置路径说明）。
-- 将设计稿导出的 PNG 资源（`logo.png` 和 `separator.png`）放在 `assets/watermark/` 目录。仓库默认不包含这些二进制文件，请从提供的素材包中复制，或参考 `assets/watermark/README.md` 自行导出后放置。
+- 将设计稿导出的黄色竖条资源（`separator.png`）放在 `assets/watermark/` 目录。生成器会在透明画布上直接绘制“今日水印 相机真实时间 防伪码”等文字标识，不再依赖单独的 logo 图片，确保水印可贴合到底图的任何区域。
 
 ### 本地运行示例
 

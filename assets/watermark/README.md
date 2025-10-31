@@ -4,7 +4,6 @@ Place the exported PNG assets from the 今日水印 template in this directory b
 
 Required files:
 
-- `logo.png` – the "今日水印" logo with transparent background.
 - `separator.png` – the yellow vertical separator bar.
 
-You can generate these PNGs from the provided PSD or reuse the design assets supplied alongside the project. Keep the filenames identical to the list above so the Python module can locate them automatically.
+The watermark script now 绘制所有右侧的“今日水印 相机真实时间 防伪码”标识，并输出透明背景的叠加图层，因此不再需要额外的 logo 图片。只要保留 `separator.png` 并保持文件名一致即可。
