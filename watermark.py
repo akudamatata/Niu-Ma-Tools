@@ -343,19 +343,26 @@ def compute_layout_sizes(
 
     location_total_height = time_height + location_gap + location_block_height
     content_height = max(time_height, location_total_height, logo_height)
-    overlay_height = top_padding + content_height + bottom_padding
+    content_origin_shift = top_padding
 
-    date_line_y = top_padding - date_bbox[1]
-    weekday_line_y = top_padding + date_line_height + date_line_spacing - weekday_bbox[1]
+    adjusted_time_position = (
+        time_position[0],
+        time_position[1] - content_origin_shift,
+    )
+
+    date_line_y = top_padding - date_bbox[1] - content_origin_shift
+    weekday_line_y = (
+        top_padding + date_line_height + date_line_spacing - weekday_bbox[1] - content_origin_shift
+    )
 
     location_start_x = left_padding
-    location_start_y = top_padding + time_height + location_gap
+    location_start_y = top_padding + time_height + location_gap - content_origin_shift
 
     logo_x = width - right_padding - logo_width
-    logo_y = top_padding + content_height - logo_height
+    logo_y = top_padding + content_height - logo_height - content_origin_shift
 
     return {
-        'time_position': time_position,
+        'time_position': adjusted_time_position,
         'time_box': time_box,
         'time_height': time_height,
         'date_x': date_x,
@@ -364,7 +371,7 @@ def compute_layout_sizes(
         'date_block_height': date_block_height,
         'separator': {
             'x': separator_x,
-            'y': top_padding,
+            'y': top_padding - content_origin_shift,
             'width': separator_width,
             'height': date_block_height,
         },
@@ -377,7 +384,7 @@ def compute_layout_sizes(
         'logo_size': (logo_width, logo_height),
         'logo_position': (logo_x, logo_y),
         'content_height': content_height,
-        'overlay_height': overlay_height,
+        'overlay_height': content_height,
         'available_width': available_width,
     }
 
@@ -515,7 +522,7 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     else:
         logo_image = base_logo_image
 
-    overlay_height = layout['overlay_height']
+    overlay_height = max(layout['content_height'], 1)
 
     overlay = Image.new('RGBA', (width, overlay_height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -553,7 +560,7 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     paste_centered(overlay, logo_image, layout['logo_position'])
 
     base_rgba = base_image.convert('RGBA')
-    paste_y = height - overlay_height
+    paste_y = height - layout['content_height'] - bottom_padding
     base_rgba.paste(overlay, (0, paste_y), overlay)
     base_rgba.save(output_path)
 
