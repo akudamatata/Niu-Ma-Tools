@@ -551,11 +551,11 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     location_font = layout['location_font']
     location_start_x, location_start_y = layout['location_start']
     current_y = location_start_y
-    for line, offset, height in zip(
+    for line, offset, line_height in zip(
         layout['location_lines'], layout['location_offsets'], layout['location_heights']
     ):
         draw.text((location_start_x, current_y + offset), line, font=location_font, fill=primary_color)
-        current_y += height + layout['location_line_spacing']
+        current_y += line_height + layout['location_line_spacing']
 
     paste_centered(overlay, logo_image, layout['logo_position'])
 
