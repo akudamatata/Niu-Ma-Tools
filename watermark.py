@@ -86,8 +86,7 @@ def generate_security_code() -> str:
 
 def compute_logo_layout(small_font_size: int, security_code: str) -> Dict[str, object]:
     body_font = load_font(small_font_size)
-    title_font_size = max(int(small_font_size * 1.2), small_font_size + 2)
-    title_font = load_font(title_font_size)
+    title_font = load_font(small_font_size)
 
     scratch = Image.new('RGBA', (1, 1))
     scratch_draw = ImageDraw.Draw(scratch)
@@ -111,8 +110,8 @@ def compute_logo_layout(small_font_size: int, security_code: str) -> Dict[str, o
     third_width = third_bbox[2] - third_bbox[0]
     third_height = third_bbox[3] - third_bbox[1]
 
-    gap = max(int(small_font_size * 0.4), 8)
-    line_spacing = max(int(small_font_size * 0.45), 8)
+    gap = max(int(small_font_size * 0.35), 6)
+    line_spacing = max(int(small_font_size * 0.4), 6)
     rect_padding_x = max(int(small_font_size * 0.45), 10)
     rect_padding_y = max(int(small_font_size * 0.25), 6)
     rect_width = real_width + rect_padding_x * 2
@@ -241,9 +240,9 @@ def compute_layout_sizes(
     top_padding: int,
     bottom_padding: int,
 ) -> Dict[str, object]:
-    separator_width = 8
-    separator_gap = max(int(width * 0.012), 12)
-    after_separator_gap = max(int(width * 0.018), 16)
+    separator_width = max(int(width * 0.0035), 4)
+    separator_gap = max(int(width * 0.01), 10)
+    after_separator_gap = max(int(width * 0.015), 14)
     logo_gap = max(int(width * 0.02), 24)
     location_gap = 12
     location_line_spacing = 6
@@ -389,7 +388,13 @@ def compute_layout_sizes(
     }
 
 
-def generate_watermark(image_path: str, output_path: str, location: str, temperature: str) -> None:
+def generate_watermark(
+    image_path: str,
+    output_path: str,
+    location: str,
+    temperature: str,
+    weather: str,
+) -> None:
     if not Path(image_path).exists():
         raise FileNotFoundError(f'输入图片不存在：{image_path}')
 
@@ -399,7 +404,7 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
 
     base_dim = min(width, height)
     overlay_base_height = max(int(base_dim * 0.24), 1)
-    padding_x = max(int(width * 0.05), 48)
+    padding_x = max(int(width * 0.035), 36)
     right_padding = max(int(width * 0.03), 32)
     top_padding = 32
     bottom_padding = 32
@@ -420,9 +425,13 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     time_text = info['time']
     date_line = info['date']
     temperature = temperature.strip()
-    weekday_line = f"星期{info['weekday']}"
+    weather = weather.strip()
+    weekday_parts = [f"星期{info['weekday']}"]
+    if weather:
+        weekday_parts.append(weather)
     if temperature:
-        weekday_line = f"{weekday_line}  {temperature}"
+        weekday_parts.append(temperature)
+    weekday_line = '  '.join(weekday_parts)
 
     security_code = generate_security_code()
     base_logo_image = render_logo_image(
@@ -571,11 +580,12 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument('--output', required=True, help='Path to save the watermarked image (PNG).')
     parser.add_argument('--location', default='', help='Location text to display.')
     parser.add_argument('--temperature', default='', help='Temperature text to display.')
+    parser.add_argument('--weather', default='', help='Weather condition text to display.')
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     try:
-        generate_watermark(args.input, args.output, args.location, args.temperature)
+        generate_watermark(args.input, args.output, args.location, args.temperature, args.weather)
     except Exception as exc:  # pragma: no cover - runtime safeguard
         sys.stderr.write(f'水印生成失败：{exc}\n')
         return 1

@@ -6,6 +6,7 @@ export function WatermarkForm() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [location, setLocation] = useState('')
   const [temperature, setTemperature] = useState('26℃')
+  const [weather, setWeather] = useState('多云')
   const status = useWatermarkStore((state) => state.status)
   const error = useWatermarkStore((state) => state.error)
   const generate = useWatermarkStore((state) => state.generate)
@@ -34,7 +35,8 @@ export function WatermarkForm() {
 
     await generate(selectedFile, {
       location: location.trim(),
-      temperature: temperature.trim()
+      temperature: temperature.trim(),
+      weather: weather.trim()
     })
   }
 
@@ -65,7 +67,7 @@ export function WatermarkForm() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <label className="space-y-2 text-sm text-white/80">
           <span>拍摄地点</span>
           <input
@@ -73,6 +75,16 @@ export function WatermarkForm() {
             value={location}
             onChange={(event) => setLocation(event.target.value)}
             placeholder="如：沃尔玛超市"
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-sky-300 focus:outline-none"
+          />
+        </label>
+        <label className="space-y-2 text-sm text-white/80">
+          <span>天气状况</span>
+          <input
+            type="text"
+            value={weather}
+            onChange={(event) => setWeather(event.target.value)}
+            placeholder="如：多云"
             className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-sky-300 focus:outline-none"
           />
         </label>
