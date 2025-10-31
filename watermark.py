@@ -159,6 +159,7 @@ def draw_logo(
     draw: ImageDraw.ImageDraw,
     position: tuple[int, int],
     primary_color: tuple[int, int, int, int],
+    secondary_color: tuple[int, int, int, int],
     layout: Dict[str, object],
 ) -> None:
     x, y = position
@@ -177,12 +178,12 @@ def draw_logo(
         (x, second_text_y + int(layout['second_offset_y'])),
         layout['second_text'],
         font=layout['body_font'],
-        fill=primary_color,
+        fill=secondary_color,
     )
 
     rect_x = x + layout['second_width'] + layout['gap']
     rect_y = current_y + (layout['second_line_height'] - layout['rect_height']) // 2
-    rect_fill = (120, 120, 120, 180)
+    rect_fill = (120, 120, 120, 200)
     draw.rounded_rectangle(
         (
             rect_x,
@@ -214,6 +215,19 @@ def draw_logo(
     )
 
 
+def render_logo_image(
+    small_font_size: int,
+    security_code: str,
+    primary_color: tuple[int, int, int, int],
+    secondary_color: tuple[int, int, int, int],
+) -> Image.Image:
+    layout = compute_logo_layout(small_font_size, security_code)
+    logo_image = Image.new('RGBA', (int(layout['width']), int(layout['height'])), (0, 0, 0, 0))
+    logo_draw = ImageDraw.Draw(logo_image)
+    draw_logo(logo_draw, (0, 0), primary_color, secondary_color, layout)
+    return logo_image
+
+
 def generate_watermark(image_path: str, output_path: str, location: str, temperature: str) -> None:
     if not Path(image_path).exists():
         raise FileNotFoundError(f'输入图片不存在：{image_path}')
@@ -233,7 +247,8 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     draw = ImageDraw.Draw(overlay)
 
     primary_color = (255, 255, 255, 255)
-    accent_color = primary_color
+    secondary_color = (176, 176, 176, 255)
+    separator_color = (251, 187, 49, 255)
 
     time_font_size = min(int(overlay_height * 0.42), 128)
     time_font = load_font(time_font_size)
@@ -244,49 +259,53 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
 
     time_text = info['time']
     time_position = (padding_x, padding_y)
-    draw.text(time_position, time_text, font=time_font, fill=accent_color)
+    draw.text(time_position, time_text, font=time_font, fill=primary_color)
     time_box = draw.textbbox(time_position, time_text, font=time_font)
 
-    separator = Image.open(SEPARATOR_PATH).convert('RGBA')
-    date_parts: List[str] = [info['date'], f"星期{info['weekday']}"]
+    date_line = info['date']
     temperature = temperature.strip()
+    weekday_line = f"星期{info['weekday']}"
     if temperature:
-        date_parts.append(temperature)
-    date_text = '  '.join(date_parts)
+        weekday_line = f"{weekday_line}  {temperature}"
 
-    date_bbox = draw.textbbox((0, 0), date_text, font=small_font)
-    date_height = date_bbox[3] - date_bbox[1]
-    date_offset_y = -date_bbox[1]
+    bbox1 = draw.textbbox((0, 0), date_line, font=small_font)
+    bbox2 = draw.textbbox((0, 0), weekday_line, font=small_font)
+    date_height = bbox1[3] - bbox1[1]
+    weekday_height = bbox2[3] - bbox2[1]
+    line_spacing = 6
+    total_date_height = date_height + line_spacing + weekday_height
 
-    date_y = padding_y + 8
+    separator_width = 8
+    separator_source = Image.open(SEPARATOR_PATH).convert('RGBA')
+    separator_source = separator_source.resize((separator_width, total_date_height), Image.LANCZOS)
+    alpha_channel = separator_source.split()[-1]
+    separator_image = Image.new('RGBA', separator_source.size, separator_color)
+    separator_image.putalpha(alpha_channel)
+    separator_x = time_box[2] + int(width * 0.02)
+    separator_y = padding_y
+    paste_centered(overlay, separator_image, (separator_x, separator_y))
 
-    separator_target_height = max(date_height, 1)
-    if separator_target_height > 0:
-        ratio = separator.width / separator.height
-        separator_size = (
-            max(int(separator_target_height * ratio), 6),
-            separator_target_height,
-        )
-        separator_resized = separator.resize(separator_size, Image.LANCZOS)
-        separator_x = time_box[2] + int(width * 0.02)
-        separator_y = date_y + (date_height - separator_size[1]) // 2
-        paste_centered(overlay, separator_resized, (separator_x, separator_y))
-        content_start_x = separator_x + separator_size[0] + int(width * 0.02)
-    else:
-        content_start_x = time_box[2] + int(width * 0.05)
-
-    draw.text((content_start_x, date_y + date_offset_y), date_text, font=small_font, fill=primary_color)
+    content_start_x = separator_x + separator_width + 14
+    date_line_y = padding_y - bbox1[1]
+    weekday_line_y = padding_y + date_height + line_spacing - bbox2[1]
+    draw.text((content_start_x, date_line_y), date_line, font=small_font, fill=primary_color)
+    draw.text((content_start_x, weekday_line_y), weekday_line, font=small_font, fill=primary_color)
 
     security_code = generate_security_code()
-    logo_layout = compute_logo_layout(small_font_size, security_code)
-    logo_x = width - padding_x - logo_layout['width']
-    logo_y = overlay_height - padding_y - logo_layout['height']
+    logo_image = render_logo_image(small_font_size, security_code, primary_color, secondary_color)
+
+    logo_target_height = max(int(overlay_height * 0.3), 1)
+    if logo_image.height != logo_target_height:
+        logo_target_width = max(int(logo_image.width * (logo_target_height / logo_image.height)), 1)
+        logo_image = logo_image.resize((logo_target_width, logo_target_height), Image.LANCZOS)
+
+    logo_x = width - padding_x - logo_image.width
+    logo_y = overlay_height - padding_y - logo_image.height
 
     available_width = max(logo_x - content_start_x - 24, int(width * 0.2))
     location_text = location.strip() or '未知地点'
     wrapped_location = wrap_text(draw, location_text, location_font, available_width)
 
-    # 如果仍有文本超过区域宽度，则逐步缩小字体尺寸
     while (
         wrapped_location
         and any(draw.textlength(line, font=location_font) > available_width for line in wrapped_location)
@@ -298,13 +317,17 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
 
     location_lines = wrapped_location or [location_text]
     line_height = location_font_size + 6
-    location_start_y = max(time_box[3], date_y + date_height + max(int(small_font_size * 0.6), 12))
-    location_start_y = max(location_start_y, overlay_height - padding_y - line_height * len(location_lines))
+    location_start_y = padding_y + total_date_height + 12
 
     for index, line in enumerate(location_lines):
-        draw.text((content_start_x, location_start_y + index * line_height), line, font=location_font, fill=primary_color)
+        draw.text(
+            (content_start_x, location_start_y + index * line_height),
+            line,
+            font=location_font,
+            fill=primary_color,
+        )
 
-    draw_logo(draw, (logo_x, logo_y), primary_color, logo_layout)
+    paste_centered(overlay, logo_image, (logo_x, logo_y))
 
     base_rgba = base_image.convert('RGBA')
     base_rgba.paste(overlay, (0, height - overlay_height), overlay)
