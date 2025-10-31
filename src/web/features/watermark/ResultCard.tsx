@@ -54,7 +54,7 @@ export function ResultCard({ status, result, error }: Props) {
           />
         </figure>
         <div className="rounded-xl bg-black/40 p-4">
-          <p className="text-sm text-white/60">文件名：{result.filename}</p>
+          <p className="break-words text-sm text-white/60">文件名：{result.filename}</p>
           <p className="text-sm text-white/60">大小：{result.size}</p>
         </div>
         <a
