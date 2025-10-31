@@ -517,6 +517,9 @@ app.post('/api/watermark', upload.single('image'), async (req, res) => {
   const location = String(req.body?.location ?? '').trim()
   const temperature = String(req.body?.temperature ?? '').trim()
   const weather = String(req.body?.weather ?? '').trim()
+  const customDate = String(req.body?.date ?? '').trim()
+  const customTime = String(req.body?.time ?? '').trim()
+  const customWeekday = String(req.body?.weekday ?? '').trim()
 
   const outputPath = join(tempFile.workingDir, 'output.png')
   const pythonExecutable = process.env.PYTHON_EXECUTABLE || 'python3'
@@ -535,6 +538,18 @@ app.post('/api/watermark', upload.single('image'), async (req, res) => {
     '--weather',
     weather
   ]
+
+  if (customDate) {
+    args.push('--date', customDate)
+  }
+
+  if (customTime) {
+    args.push('--time', customTime)
+  }
+
+  if (customWeekday) {
+    args.push('--weekday', customWeekday)
+  }
 
   try {
     await new Promise((resolvePromise, rejectPromise) => {

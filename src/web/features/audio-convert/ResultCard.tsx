@@ -10,7 +10,13 @@ interface ResultCardProps {
 export function ResultCard({ status, result, error }: ResultCardProps) {
   const renderContent = () => {
     if (status === 'idle') {
-      return <p className="text-white/60">选择音频文件并点击「立即转换」开始处理。</p>
+      return (
+        <div className="text-center text-sm leading-relaxed text-white/70">
+          选择音频文件并点击
+          <span className="mx-1 rounded-full bg-white/10 px-2 py-1 text-xs font-semibold text-white">立即转换</span>
+          开始处理，我们会在服务器上自动完成转码。
+        </div>
+      )
     }
 
     if (status === 'converting') {
@@ -24,7 +30,7 @@ export function ResultCard({ status, result, error }: ResultCardProps) {
 
     if (status === 'error' && error) {
       return (
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-6 text-rose-100">
+        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-6 text-left text-rose-100">
           <h3 className="text-lg font-semibold">转换失败</h3>
           <p className="mt-2 text-sm opacity-80">{error.message}</p>
           {error.detail && <pre className="mt-4 whitespace-pre-wrap text-xs opacity-70">{error.detail}</pre>}
@@ -58,7 +64,7 @@ export function ResultCard({ status, result, error }: ResultCardProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-inner shadow-black/20">
+    <div className="flex h-full min-h-[320px] flex-col justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-6 shadow-inner shadow-black/30">
       {renderContent()}
     </div>
   )
