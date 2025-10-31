@@ -516,6 +516,7 @@ app.post('/api/watermark', upload.single('image'), async (req, res) => {
 
   const location = String(req.body?.location ?? '').trim()
   const temperature = String(req.body?.temperature ?? '').trim()
+  const weather = String(req.body?.weather ?? '').trim()
 
   const outputPath = join(tempFile.workingDir, 'output.png')
   const pythonExecutable = process.env.PYTHON_EXECUTABLE || 'python3'
@@ -530,7 +531,9 @@ app.post('/api/watermark', upload.single('image'), async (req, res) => {
     '--location',
     location,
     '--temperature',
-    temperature
+    temperature,
+    '--weather',
+    weather
   ]
 
   try {
@@ -595,6 +598,9 @@ app.post('/api/watermark', upload.single('image'), async (req, res) => {
   res.setHeader('X-Watermark-Location', encodeURIComponent(location || ''))
   if (temperature) {
     res.setHeader('X-Watermark-Temperature', encodeURIComponent(temperature))
+  }
+  if (weather) {
+    res.setHeader('X-Watermark-Weather', encodeURIComponent(weather))
   }
   res.setHeader('Cache-Control', 'no-store')
 

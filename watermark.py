@@ -73,156 +73,10 @@ def wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, m
     return lines
 
 
-def paste_centered(base: Image.Image, overlay: Image.Image, position: tuple[int, int]) -> None:
-    x, y = position
-    base.paste(overlay, (x, y), overlay)
-
-
 def generate_security_code() -> str:
     length = random.randint(12, 16)
     charset = string.ascii_uppercase + string.digits
     return ''.join(random.choices(charset, k=length))
-
-
-def compute_logo_layout(small_font_size: int, security_code: str) -> Dict[str, object]:
-    body_font = load_font(small_font_size)
-    title_font_size = max(int(small_font_size * 1.2), small_font_size + 2)
-    title_font = load_font(title_font_size)
-
-    scratch = Image.new('RGBA', (1, 1))
-    scratch_draw = ImageDraw.Draw(scratch)
-
-    title_text = '今日水印'
-    second_text = '相机'
-    real_text = '真实时间'
-    third_text = f'防伪 {security_code}'
-
-    title_bbox = scratch_draw.textbbox((0, 0), title_text, font=title_font)
-    second_bbox = scratch_draw.textbbox((0, 0), second_text, font=body_font)
-    real_bbox = scratch_draw.textbbox((0, 0), real_text, font=body_font)
-    third_bbox = scratch_draw.textbbox((0, 0), third_text, font=body_font)
-
-    title_width = title_bbox[2] - title_bbox[0]
-    title_height = title_bbox[3] - title_bbox[1]
-    second_width = second_bbox[2] - second_bbox[0]
-    second_height = second_bbox[3] - second_bbox[1]
-    real_width = real_bbox[2] - real_bbox[0]
-    real_height = real_bbox[3] - real_bbox[1]
-    third_width = third_bbox[2] - third_bbox[0]
-    third_height = third_bbox[3] - third_bbox[1]
-
-    gap = max(int(small_font_size * 0.4), 8)
-    line_spacing = max(int(small_font_size * 0.45), 8)
-    rect_padding_x = max(int(small_font_size * 0.45), 10)
-    rect_padding_y = max(int(small_font_size * 0.25), 6)
-    rect_width = real_width + rect_padding_x * 2
-    rect_height = real_height + rect_padding_y * 2
-    rect_radius = max(int(rect_height * 0.3), 6)
-    second_line_height = max(second_height, rect_height)
-
-    total_width = max(title_width, second_width + gap + rect_width, third_width)
-    total_height = title_height + line_spacing + second_line_height + line_spacing + third_height
-
-    return {
-        'title_text': title_text,
-        'second_text': second_text,
-        'real_text': real_text,
-        'third_text': third_text,
-        'title_font': title_font,
-        'body_font': body_font,
-        'title_height': title_height,
-        'second_height': second_height,
-        'real_height': real_height,
-        'third_height': third_height,
-        'title_offset_y': -title_bbox[1],
-        'second_offset_y': -second_bbox[1],
-        'real_offset_y': -real_bbox[1],
-        'third_offset_y': -third_bbox[1],
-        'second_width': second_width,
-        'rect_width': rect_width,
-        'rect_height': rect_height,
-        'rect_padding_x': rect_padding_x,
-        'rect_padding_y': rect_padding_y,
-        'rect_radius': rect_radius,
-        'second_line_height': second_line_height,
-        'gap': gap,
-        'line_spacing': line_spacing,
-        'width': total_width,
-        'height': total_height,
-    }
-
-
-def draw_logo(
-    draw: ImageDraw.ImageDraw,
-    position: tuple[int, int],
-    primary_color: tuple[int, int, int, int],
-    secondary_color: tuple[int, int, int, int],
-    layout: Dict[str, object],
-) -> None:
-    x, y = position
-    current_y = y
-
-    draw.text(
-        (x, current_y + int(layout['title_offset_y'])),
-        layout['title_text'],
-        font=layout['title_font'],
-        fill=primary_color,
-    )
-    current_y += layout['title_height'] + layout['line_spacing']
-
-    second_text_y = current_y + (layout['second_line_height'] - layout['second_height']) // 2
-    draw.text(
-        (x, second_text_y + int(layout['second_offset_y'])),
-        layout['second_text'],
-        font=layout['body_font'],
-        fill=secondary_color,
-    )
-
-    rect_x = x + layout['second_width'] + layout['gap']
-    rect_y = current_y + (layout['second_line_height'] - layout['rect_height']) // 2
-    rect_fill = (120, 120, 120, 200)
-    draw.rounded_rectangle(
-        (
-            rect_x,
-            rect_y,
-            rect_x + layout['rect_width'],
-            rect_y + layout['rect_height'],
-        ),
-        radius=layout['rect_radius'],
-        fill=rect_fill,
-    )
-
-    real_text_y = rect_y + (layout['rect_height'] - layout['real_height']) // 2 + int(layout['real_offset_y'])
-    draw.text(
-        (
-            rect_x + layout['rect_padding_x'],
-            real_text_y,
-        ),
-        layout['real_text'],
-        font=layout['body_font'],
-        fill=primary_color,
-    )
-
-    current_y += layout['second_line_height'] + layout['line_spacing']
-    draw.text(
-        (x, current_y + int(layout['third_offset_y'])),
-        layout['third_text'],
-        font=layout['body_font'],
-        fill=primary_color,
-    )
-
-
-def render_logo_image(
-    small_font_size: int,
-    security_code: str,
-    primary_color: tuple[int, int, int, int],
-    secondary_color: tuple[int, int, int, int],
-) -> Image.Image:
-    layout = compute_logo_layout(small_font_size, security_code)
-    logo_image = Image.new('RGBA', (int(layout['width']), int(layout['height'])), (0, 0, 0, 0))
-    logo_draw = ImageDraw.Draw(logo_image)
-    draw_logo(logo_draw, (0, 0), primary_color, secondary_color, layout)
-    return logo_image
 
 
 def compute_layout_sizes(
@@ -235,19 +89,22 @@ def compute_layout_sizes(
     time_text: str,
     date_line: str,
     weekday_line: str,
-    base_logo_image: Image.Image,
+    security_code: str,
     left_padding: int,
     right_padding: int,
     top_padding: int,
     bottom_padding: int,
 ) -> Dict[str, object]:
-    separator_width = 8
-    separator_gap = max(int(width * 0.012), 12)
-    after_separator_gap = max(int(width * 0.018), 16)
-    logo_gap = max(int(width * 0.02), 24)
+    separator_width = max(int(width * 0.0035), 4)
+    separator_gap = max(int(width * 0.01), 10)
+    after_separator_gap = max(int(width * 0.015), 14)
+    logo_gap = max(int(width * 0.018), 18)
     location_gap = 12
     location_line_spacing = 6
     date_line_spacing = 6
+
+    second_ratio = 0.86
+    third_ratio = 0.74
 
     time_bbox = draw.textbbox((0, 0), time_text, font=time_font)
     time_text_width = time_bbox[2] - time_bbox[0]
@@ -274,39 +131,82 @@ def compute_layout_sizes(
 
     location_text = location_text.strip() or '未知地点'
 
-    base_logo_width, base_logo_height = base_logo_image.size
-    logo_height = max(base_logo_height, 1)
-    logo_width = max(base_logo_width, 1)
-
-    location_font = load_font(location_font_size)
     min_location_font_size = 18
+    min_second_font_size = 12
+    min_third_font_size = 10
 
+    location_font_size_current = location_font_size
+    location_font = load_font(location_font_size_current)
     lines_cache: List[str] | None = None
     location_heights: List[int] = []
     location_offsets: List[int] = []
     location_block_height = 0
-    available_width = max(width - left_padding - right_padding - logo_width - logo_gap, int(width * 0.3))
 
-    for _ in range(6):
+    right_block_layout: Dict[str, object] | None = None
+    available_width = max(width - left_padding - right_padding, int(width * 0.25))
+
+    for _ in range(10):
+        title_font = load_font(location_font_size_current)
+        second_font_size = max(int(location_font_size_current * second_ratio), min_second_font_size)
+        third_font_size = max(int(location_font_size_current * third_ratio), min_third_font_size)
+        second_font = load_font(second_font_size)
+        third_font = load_font(third_font_size)
+        right_line_spacing = max(int(location_font_size_current * 0.3), 6)
+
+        right_lines = []
+        max_right_width = 0
+        total_right_height = 0
+        for text, font, role in [
+            ('今日水印', title_font, 'title'),
+            ('相机真实时间', second_font, 'second'),
+            (f'防伪 {security_code}', third_font, 'third'),
+        ]:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            width_span = bbox[2] - bbox[0]
+            height_span = bbox[3] - bbox[1]
+            max_right_width = max(max_right_width, width_span)
+            right_lines.append(
+                {
+                    'text': text,
+                    'font': font,
+                    'width': width_span,
+                    'height': height_span,
+                    'offset': -bbox[1],
+                    'role': role,
+                }
+            )
+            total_right_height += height_span
+
+        if len(right_lines) > 1:
+            total_right_height += right_line_spacing * (len(right_lines) - 1)
+
+        right_block_layout = {
+            'lines': right_lines,
+            'width': max_right_width,
+            'height': total_right_height,
+            'line_spacing': right_line_spacing,
+        }
+
         available_width = max(
-            width - left_padding - right_padding - logo_width - logo_gap,
-            int(width * 0.3),
+            width - left_padding - right_padding - right_block_layout['width'] - logo_gap,
+            int(width * 0.25),
         )
         if available_width <= 0:
             available_width = max(width - left_padding - right_padding, 1)
 
+        location_font = title_font
         lines = wrap_text(draw, location_text, location_font, available_width) or [location_text]
 
-        while (
-            location_font_size > min_location_font_size
-            and any(draw.textlength(line, font=location_font) > available_width for line in lines)
-        ):
-            location_font_size -= 2
-            location_font = load_font(location_font_size)
-            lines = wrap_text(draw, location_text, location_font, available_width) or [location_text]
+        needs_shrink = any(
+            draw.textlength(line, font=location_font) > available_width for line in lines
+        )
 
-        line_heights: List[int] = []
-        line_offsets: List[int] = []
+        if needs_shrink and location_font_size_current > min_location_font_size:
+            location_font_size_current = max(location_font_size_current - 2, min_location_font_size)
+            continue
+
+        line_heights = []
+        line_offsets = []
         total_height = 0
         for line in lines:
             bbox = draw.textbbox((0, 0), line, font=location_font)
@@ -322,27 +222,64 @@ def compute_layout_sizes(
         location_heights = line_heights
         location_offsets = line_offsets
         lines_cache = lines
-
-        location_total_height = time_height + location_gap + location_block_height
-        content_height = max(time_height, location_total_height, logo_height)
-
-        target_logo_height = max(int(content_height * 0.8), 1)
-        if base_logo_height > 0:
-            target_logo_width = max(int(base_logo_width * (target_logo_height / base_logo_height)), 1)
-        else:
-            target_logo_width = logo_width
-
-        if target_logo_height == logo_height and target_logo_width == logo_width:
-            break
-
-        logo_height = target_logo_height
-        logo_width = target_logo_width
+        break
 
     if lines_cache is None:
-        lines_cache = [location_text]
+        location_font = load_font(location_font_size_current)
+        lines_cache = wrap_text(draw, location_text, location_font, available_width) or [location_text]
+        location_heights = []
+        location_offsets = []
+        location_block_height = 0
+        for line in lines_cache:
+            bbox = draw.textbbox((0, 0), line, font=location_font)
+            height = bbox[3] - bbox[1]
+            location_heights.append(height)
+            location_offsets.append(-bbox[1])
+            location_block_height += height
+        if len(lines_cache) > 1:
+            location_block_height += location_line_spacing * (len(lines_cache) - 1)
+
+    if right_block_layout is None:
+        title_font = load_font(location_font_size_current)
+        second_font_size = max(int(location_font_size_current * second_ratio), min_second_font_size)
+        third_font_size = max(int(location_font_size_current * third_ratio), min_third_font_size)
+        second_font = load_font(second_font_size)
+        third_font = load_font(third_font_size)
+        right_line_spacing = max(int(location_font_size_current * 0.3), 6)
+        right_lines = []
+        max_right_width = 0
+        total_right_height = 0
+        for text, font, role in [
+            ('今日水印', title_font, 'title'),
+            ('相机真实时间', second_font, 'second'),
+            (f'防伪 {security_code}', third_font, 'third'),
+        ]:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            width_span = bbox[2] - bbox[0]
+            height_span = bbox[3] - bbox[1]
+            max_right_width = max(max_right_width, width_span)
+            right_lines.append(
+                {
+                    'text': text,
+                    'font': font,
+                    'width': width_span,
+                    'height': height_span,
+                    'offset': -bbox[1],
+                    'role': role,
+                }
+            )
+            total_right_height += height_span
+        if len(right_lines) > 1:
+            total_right_height += right_line_spacing * (len(right_lines) - 1)
+        right_block_layout = {
+            'lines': right_lines,
+            'width': max_right_width,
+            'height': total_right_height,
+            'line_spacing': right_line_spacing,
+        }
 
     location_total_height = time_height + location_gap + location_block_height
-    content_height = max(time_height, location_total_height, logo_height)
+    content_height = max(time_height, location_total_height, right_block_layout['height'])
     content_origin_shift = top_padding
 
     adjusted_time_position = (
@@ -358,8 +295,13 @@ def compute_layout_sizes(
     location_start_x = left_padding
     location_start_y = top_padding + time_height + location_gap - content_origin_shift
 
-    logo_x = width - right_padding - logo_width
-    logo_y = top_padding + content_height - logo_height - content_origin_shift
+    right_edge = width - right_padding
+    right_start_y = top_padding + content_height - right_block_layout['height'] - content_origin_shift
+    right_block_layout = {
+        **right_block_layout,
+        'right_edge': right_edge,
+        'top': right_start_y,
+    }
 
     return {
         'time_position': adjusted_time_position,
@@ -381,15 +323,21 @@ def compute_layout_sizes(
         'location_offsets': location_offsets,
         'location_start': (location_start_x, location_start_y),
         'location_line_spacing': location_line_spacing,
-        'logo_size': (logo_width, logo_height),
-        'logo_position': (logo_x, logo_y),
+        'right_block': right_block_layout,
+        'location_font_size': location_font_size_current,
         'content_height': content_height,
         'overlay_height': content_height,
         'available_width': available_width,
     }
 
 
-def generate_watermark(image_path: str, output_path: str, location: str, temperature: str) -> None:
+def generate_watermark(
+    image_path: str,
+    output_path: str,
+    location: str,
+    temperature: str,
+    weather: str,
+) -> None:
     if not Path(image_path).exists():
         raise FileNotFoundError(f'输入图片不存在：{image_path}')
 
@@ -399,10 +347,10 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
 
     base_dim = min(width, height)
     overlay_base_height = max(int(base_dim * 0.24), 1)
-    padding_x = max(int(width * 0.05), 48)
-    right_padding = max(int(width * 0.03), 32)
-    top_padding = 32
-    bottom_padding = 32
+    padding_x = max(int(width * 0.035), 36)
+    right_padding = max(int(width * 0.02), 20)
+    top_padding = 28
+    bottom_padding = 28
 
     scratch = Image.new('RGBA', (width, overlay_base_height or 1), (0, 0, 0, 0))
     draw_measure = ImageDraw.Draw(scratch)
@@ -420,17 +368,15 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     time_text = info['time']
     date_line = info['date']
     temperature = temperature.strip()
-    weekday_line = f"星期{info['weekday']}"
+    weather = weather.strip()
+    weekday_parts = [f"星期{info['weekday']}"]
+    if weather:
+        weekday_parts.append(weather)
     if temperature:
-        weekday_line = f"{weekday_line}  {temperature}"
+        weekday_parts.append(temperature)
+    weekday_line = '  '.join(weekday_parts)
 
     security_code = generate_security_code()
-    base_logo_image = render_logo_image(
-        small_font_size,
-        security_code,
-        primary_color,
-        secondary_color,
-    )
 
     max_overlay_ratio = 0.30
     max_overlay_height = max(int(height * max_overlay_ratio), 1)
@@ -445,12 +391,13 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
         time_text=time_text,
         date_line=date_line,
         weekday_line=weekday_line,
-        base_logo_image=base_logo_image,
+        security_code=security_code,
         left_padding=padding_x,
         right_padding=right_padding,
         top_padding=top_padding,
         bottom_padding=bottom_padding,
     )
+    location_font_size = layout['location_font_size']
 
     min_time_font_size = 12
     min_small_font_size = 10
@@ -492,13 +439,6 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
 
         time_font = load_font(time_font_size)
         small_font = load_font(small_font_size)
-        base_logo_image = render_logo_image(
-            small_font_size,
-            security_code,
-            primary_color,
-            secondary_color,
-        )
-
         layout = compute_layout_sizes(
             width=width,
             draw=draw_measure,
@@ -509,18 +449,13 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
             time_text=time_text,
             date_line=date_line,
             weekday_line=weekday_line,
-            base_logo_image=base_logo_image,
+            security_code=security_code,
             left_padding=padding_x,
             right_padding=right_padding,
             top_padding=top_padding,
             bottom_padding=bottom_padding,
         )
-
-    logo_size = layout['logo_size']
-    if base_logo_image.size != logo_size:
-        logo_image = base_logo_image.resize(logo_size, Image.LANCZOS)
-    else:
-        logo_image = base_logo_image
+        location_font_size = layout['location_font_size']
 
     overlay_height = max(layout['content_height'], 1)
 
@@ -557,7 +492,18 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
         draw.text((location_start_x, current_y + offset), line, font=location_font, fill=primary_color)
         current_y += line_height + layout['location_line_spacing']
 
-    paste_centered(overlay, logo_image, layout['logo_position'])
+    right_block = layout['right_block']
+    current_y = right_block['top']
+    for line in right_block['lines']:
+        if line['role'] == 'title':
+            fill = separator_color
+        elif line['role'] == 'second':
+            fill = secondary_color
+        else:
+            fill = primary_color
+        text_x = right_block['right_edge'] - line['width']
+        draw.text((text_x, current_y + line['offset']), line['text'], font=line['font'], fill=fill)
+        current_y += line['height'] + right_block['line_spacing']
 
     base_rgba = base_image.convert('RGBA')
     paste_y = height - layout['content_height'] - bottom_padding
@@ -571,11 +517,12 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument('--output', required=True, help='Path to save the watermarked image (PNG).')
     parser.add_argument('--location', default='', help='Location text to display.')
     parser.add_argument('--temperature', default='', help='Temperature text to display.')
+    parser.add_argument('--weather', default='', help='Weather condition text to display.')
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     try:
-        generate_watermark(args.input, args.output, args.location, args.temperature)
+        generate_watermark(args.input, args.output, args.location, args.temperature, args.weather)
     except Exception as exc:  # pragma: no cover - runtime safeguard
         sys.stderr.write(f'水印生成失败：{exc}\n')
         return 1
