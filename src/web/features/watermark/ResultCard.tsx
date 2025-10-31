@@ -40,7 +40,7 @@ export function ResultCard({ status, result, error }: Props) {
 
   if (status === 'success' && result) {
     return (
-      <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/90">
+      <div className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/90">
         <div>
           <h3 className="text-lg font-semibold text-white">生成成功</h3>
           <p className="mt-1 text-sm text-white/70">以下预览即为生成结果，点击下方按钮可下载原图尺寸。</p>
@@ -53,8 +53,10 @@ export function ResultCard({ status, result, error }: Props) {
             loading="lazy"
           />
         </figure>
-        <div className="rounded-xl bg-black/40 p-4">
-          <p className="text-sm text-white/60">文件名：{result.filename}</p>
+        <div className="max-w-full rounded-xl bg-black/40 p-4">
+          <p className="break-all text-sm text-white/60">
+            文件名：{result.filename}
+          </p>
           <p className="text-sm text-white/60">大小：{result.size}</p>
         </div>
         <a
