@@ -23,7 +23,7 @@ export default function WatermarkFeature() {
           <h2 className="text-3xl font-semibold text-white">自定义水印</h2>
           <p className="text-white/70">
             上传一张照片，我们会根据当前日期、时间、星期以及你提供的地点和温度信息，自动生成符合「今日水印」风格的贴纸并叠加到图片上。
-            系统会自动选择黑/白背景样式，保证水印在不同场景下都清晰易读。
+            水印文字直接覆盖在照片上，保持完全透明的背景层，让模板配色在任何场景下都自然贴合。
           </p>
           <WatermarkForm />
         </div>
