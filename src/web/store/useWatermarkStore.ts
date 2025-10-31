@@ -17,7 +17,10 @@ interface WatermarkState {
   status: WatermarkStatus
   result: WatermarkResult | null
   error: WatermarkError | null
-  generate: (file: File, payload: { location: string; temperature: string }) => Promise<void>
+  generate: (
+    file: File,
+    payload: { location: string; temperature: string; weather: string }
+  ) => Promise<void>
   reset: () => void
 }
 
@@ -54,6 +57,7 @@ export const useWatermarkStore = create<WatermarkState>((set) => ({
     formData.append('image', file)
     formData.append('location', payload.location)
     formData.append('temperature', payload.temperature)
+    formData.append('weather', payload.weather)
 
     let response: Response
 
