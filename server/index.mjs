@@ -172,6 +172,25 @@ function normalizeQuality(value) {
   return null
 }
 
+function decodePotentialLatin1(name) {
+  if (!name) {
+    return name
+  }
+
+  try {
+    const decoded = Buffer.from(name, 'latin1').toString('utf8')
+    const roundTripped = Buffer.from(decoded, 'utf8').toString('latin1')
+
+    if (roundTripped === name) {
+      return decoded
+    }
+  } catch (error) {
+    // Fall through to returning the original name if decoding fails.
+  }
+
+  return name
+}
+
 function sanitizeFilename(name, fallback = 'converted') {
   const base = name?.trim() ? name.trim() : fallback
   return base.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_')
@@ -604,7 +623,11 @@ app.post('/api/watermark', upload.single('image'), async (req, res) => {
   await cleanup()
 
   const originalName = req.file.originalname || 'photo'
-  const baseName = sanitizeFilename(originalName.replace(/\.[^/.]+$/, '') || 'photo', 'photo')
+  const decodedName = decodePotentialLatin1(originalName)
+  const baseName = sanitizeFilename(
+    decodedName.replace(/\.[^/.]+$/, '') || 'photo',
+    'photo'
+  )
   const outputFileName = `${baseName}-watermark.png`
 
   res.setHeader('Content-Type', 'image/png')
@@ -630,7 +653,8 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
   const bitrate = normalizeBitrate(req.body?.bitrate)
   const quality = normalizeQuality(req.body?.quality)
 
-  const originalName = req.file.originalname || 'audio'
+  const originalNameRaw = req.file.originalname || 'audio'
+  const originalName = decodePotentialLatin1(originalNameRaw)
   const baseName = sanitizeFilename(
     originalName.replace(/\.[^/.]+$/, ''),
     'converted'
