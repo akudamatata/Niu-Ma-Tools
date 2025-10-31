@@ -13,7 +13,7 @@ interface Props {
 export function ResultCard({ status, result, error }: Props) {
   if (status === 'idle' && !result) {
     return (
-      <div className="flex h-full min-h-[220px] items-center justify-center rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/70">
+      <div className="flex h-full min-h-[200px] items-center justify-center rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/70">
         选择一张照片并填写地点信息，我们会自动生成今日水印。
       </div>
     )
@@ -21,7 +21,7 @@ export function ResultCard({ status, result, error }: Props) {
 
   if (status === 'processing') {
     return (
-      <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/80">
+      <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/80">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
         <p>正在生成水印，请稍候...</p>
       </div>
@@ -40,12 +40,12 @@ export function ResultCard({ status, result, error }: Props) {
 
   if (status === 'success' && result) {
     return (
-      <div className="space-y-5 rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/90">
+      <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-900/40 p-6 text-white/90">
         <div>
           <h3 className="text-lg font-semibold text-white">生成成功</h3>
           <p className="mt-1 text-sm text-white/70">以下预览即为生成结果，点击下方按钮可下载原图尺寸。</p>
         </div>
-        <figure className="relative flex aspect-[9/16] w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4">
+        <figure className="relative mx-auto flex aspect-[9/16] w-full max-w-[260px] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4">
           <img
             src={result.url}
             alt="生成的水印图片预览"

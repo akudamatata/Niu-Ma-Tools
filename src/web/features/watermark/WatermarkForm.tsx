@@ -66,11 +66,11 @@ export function WatermarkForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-3">
         <label className="block text-sm font-medium text-white/80">选择照片</label>
         <div
-          className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/40 bg-white/5 px-6 py-10 text-center transition hover:border-white/70 hover:bg-white/10"
+          className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/40 bg-white/5 px-6 py-8 text-center transition hover:border-white/70 hover:bg-white/10"
           onClick={() => fileInputRef.current?.click()}
         >
           <input
