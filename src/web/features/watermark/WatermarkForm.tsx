@@ -87,7 +87,7 @@ export function WatermarkForm() {
           {selectedFile ? (
             <div className="w-full text-center">
               <p
-                className="mx-auto max-w-full truncate text-sm text-sky-200"
+                className="mx-auto w-full truncate text-sm text-sky-200"
                 title={selectedFile.name}
               >
                 当前选择：{selectedFile.name}
