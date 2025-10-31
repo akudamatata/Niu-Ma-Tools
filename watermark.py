@@ -391,7 +391,7 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     width, height = base_image.size
 
     base_dim = min(width, height)
-    overlay_base_height = max(int(base_dim * 0.24), 160)
+    overlay_base_height = max(int(base_dim * 0.24), 1)
     padding_x = max(int(width * 0.05), 48)
     right_padding = max(int(width * 0.03), 32)
     top_padding = 32
@@ -404,11 +404,11 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     secondary_color = (176, 176, 176, 255)
     separator_color = (251, 187, 49, 255)
 
-    time_font_size = min(int(overlay_base_height * 0.42), 128)
+    time_font_size = max(int(overlay_base_height * 0.42), 1)
     time_font = load_font(time_font_size)
-    small_font_size = max(int(time_font_size * 0.35), 28)
+    small_font_size = max(int(time_font_size * 0.35), 1)
     small_font = load_font(small_font_size)
-    location_font_size = max(int(small_font_size * 0.95), 26)
+    location_font_size = max(int(small_font_size * 0.95), 1)
     location_font = load_font(location_font_size)
 
     time_text = info['time']
@@ -449,7 +449,9 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     else:
         logo_image = base_logo_image
 
-    overlay = Image.new('RGBA', (width, layout['overlay_height']), (0, 0, 0, 0))
+    overlay_height = max(min(layout['overlay_height'], height), 1)
+
+    overlay = Image.new('RGBA', (width, overlay_height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
     draw.text(layout['time_position'], time_text, font=time_font, fill=primary_color)
@@ -485,7 +487,8 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     paste_centered(overlay, logo_image, layout['logo_position'])
 
     base_rgba = base_image.convert('RGBA')
-    base_rgba.paste(overlay, (0, height - layout['overlay_height']), overlay)
+    paste_y = height - overlay_height
+    base_rgba.paste(overlay, (0, paste_y), overlay)
     base_rgba.save(output_path)
 
 
