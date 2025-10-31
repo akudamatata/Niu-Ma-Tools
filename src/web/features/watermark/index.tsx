@@ -27,7 +27,7 @@ export default function WatermarkFeature() {
           </p>
           <WatermarkForm />
         </div>
-        <div className="flex flex-1 justify-center lg:justify-end">
+        <div className="flex flex-1 justify-center lg:items-stretch lg:justify-end">
           <ResultCard status={status} result={result} error={error} />
         </div>
       </div>
