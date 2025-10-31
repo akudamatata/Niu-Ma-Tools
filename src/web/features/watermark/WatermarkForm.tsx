@@ -85,7 +85,14 @@ export function WatermarkForm() {
             支持常见的 JPG / PNG / HEIC 图片格式。我们不会保存你的原图，生成结果会在浏览器中直接返回。
           </p>
           {selectedFile ? (
-            <p className="text-sm text-sky-200">当前选择：{selectedFile.name}</p>
+            <div className="w-full text-center">
+              <p
+                className="mx-auto max-w-full truncate text-sm text-sky-200"
+                title={selectedFile.name}
+              >
+                当前选择：{selectedFile.name}
+              </p>
+            </div>
           ) : (
             <p className="text-sm text-white/50">尚未选择图片文件</p>
           )}
