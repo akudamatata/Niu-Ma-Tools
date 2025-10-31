@@ -409,7 +409,6 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
     small_font_size = max(int(time_font_size * 0.35), 1)
     small_font = load_font(small_font_size)
     location_font_size = max(int(small_font_size * 0.95), 1)
-    location_font = load_font(location_font_size)
 
     time_text = info['time']
     date_line = info['date']
@@ -425,6 +424,9 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
         primary_color,
         secondary_color,
     )
+
+    max_overlay_ratio = 0.30
+    max_overlay_height = max(int(height * max_overlay_ratio), 1)
 
     layout = compute_layout_sizes(
         width=width,
@@ -443,13 +445,77 @@ def generate_watermark(image_path: str, output_path: str, location: str, tempera
         bottom_padding=bottom_padding,
     )
 
+    min_time_font_size = 12
+    min_small_font_size = 10
+    min_location_font_size = 10
+
+    while layout['overlay_height'] > max_overlay_height:
+        current_overlay_height = layout['overlay_height']
+        if current_overlay_height <= 0:
+            break
+
+        scale_factor = max_overlay_height / current_overlay_height
+
+        new_time_font_size = max(int(time_font_size * scale_factor), min_time_font_size)
+        new_small_font_size = max(int(small_font_size * scale_factor), min_small_font_size)
+        new_location_font_size = max(int(location_font_size * scale_factor), min_location_font_size)
+
+        if (
+            new_time_font_size == time_font_size
+            and new_small_font_size == small_font_size
+            and new_location_font_size == location_font_size
+        ):
+            if time_font_size > min_time_font_size:
+                new_time_font_size = max(time_font_size - 1, min_time_font_size)
+            if small_font_size > min_small_font_size:
+                new_small_font_size = max(small_font_size - 1, min_small_font_size)
+            if location_font_size > min_location_font_size:
+                new_location_font_size = max(location_font_size - 1, min_location_font_size)
+
+            if (
+                new_time_font_size == time_font_size
+                and new_small_font_size == small_font_size
+                and new_location_font_size == location_font_size
+            ):
+                break
+
+        time_font_size = new_time_font_size
+        small_font_size = new_small_font_size
+        location_font_size = new_location_font_size
+
+        time_font = load_font(time_font_size)
+        small_font = load_font(small_font_size)
+        base_logo_image = render_logo_image(
+            small_font_size,
+            security_code,
+            primary_color,
+            secondary_color,
+        )
+
+        layout = compute_layout_sizes(
+            width=width,
+            draw=draw_measure,
+            time_font=time_font,
+            small_font=small_font,
+            location_font_size=location_font_size,
+            location_text=location,
+            time_text=time_text,
+            date_line=date_line,
+            weekday_line=weekday_line,
+            base_logo_image=base_logo_image,
+            left_padding=padding_x,
+            right_padding=right_padding,
+            top_padding=top_padding,
+            bottom_padding=bottom_padding,
+        )
+
     logo_size = layout['logo_size']
     if base_logo_image.size != logo_size:
         logo_image = base_logo_image.resize(logo_size, Image.LANCZOS)
     else:
         logo_image = base_logo_image
 
-    overlay_height = max(min(layout['overlay_height'], height), 1)
+    overlay_height = layout['overlay_height']
 
     overlay = Image.new('RGBA', (width, overlay_height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
