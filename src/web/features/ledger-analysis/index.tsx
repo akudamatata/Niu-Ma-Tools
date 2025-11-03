@@ -301,15 +301,17 @@ export default function LedgerAnalysisFeature() {
           <div className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-6 text-white/80">
             <div className="space-y-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-white/50">当前状态</p>
-                <p className="mt-1 text-xl font-semibold text-white">
-                  {status === 'uploading'
-                    ? '分析中…'
-                    : status === 'success'
-                    ? '分析完成'
-                    : status === 'error'
-                    ? '分析失败'
-                    : '等待上传'}
+                <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                  当前状态
+                  <span className="ml-2">
+                    {status === 'uploading'
+                      ? '分析中…'
+                      : status === 'success'
+                      ? '分析完成'
+                      : status === 'error'
+                      ? '分析失败'
+                      : '等待上传'}
+                  </span>
                 </p>
               </div>
               <div>
