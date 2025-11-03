@@ -388,7 +388,6 @@ def generate_watermark(
 
     primary_color = (255, 255, 255, 255)
     separator_color = (251, 187, 49, 255)
-    color_yellow = (249, 199, 79, 255)
     stroke_width = 1
     stroke_fill = (0, 0, 0, 64)
 
@@ -554,17 +553,6 @@ def generate_watermark(
                 '今',
                 font=font,
                 stroke_width=stroke_width,
-            )
-            stroke_top = jin_bbox[1] + (jin_bbox[3] - jin_bbox[1]) * 0.45
-            stroke_bottom = jin_bbox[1] + (jin_bbox[3] - jin_bbox[1]) * 0.62
-            draw.rectangle(
-                (
-                    jin_bbox[0] + 1,
-                    int(round(stroke_top)),
-                    jin_bbox[2] - 1,
-                    int(round(stroke_bottom)),
-                ),
-                fill=color_yellow,
             )
             rest_x = jin_bbox[2]
             draw.text(
