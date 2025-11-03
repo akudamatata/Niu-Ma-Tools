@@ -2,6 +2,12 @@ import { motion } from 'framer-motion'
 
 const tools = [
   {
+    name: '音频转 MP3',
+    description: '浏览器内完成高质量 MP3 转码，安全又快速。',
+    href: '#audio-convert',
+    status: '可用'
+  },
+  {
     name: '自定义水印',
     description: '一键生成包含时间、日期、温度与地点信息的今日水印。',
     href: '#watermark',
@@ -11,12 +17,6 @@ const tools = [
     name: '12345台账分析',
     description: '自动匹配权属部门，并导出分析报表。',
     href: '#ledger-analysis',
-    status: '可用'
-  },
-  {
-    name: '音频转 MP3',
-    description: '浏览器内完成高质量 MP3 转码，安全又快速。',
-    href: '#audio-convert',
     status: '可用'
   },
   {
