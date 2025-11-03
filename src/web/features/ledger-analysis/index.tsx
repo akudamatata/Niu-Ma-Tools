@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { motion } from 'framer-motion'
 
@@ -60,6 +60,22 @@ export default function LedgerAnalysisFeature() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [stats, setStats] = useState<AnalysisStats>(null)
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl)
+      }
+    }
+  }, [downloadUrl])
+
+  const resetResults = () => {
+    setStats(null)
+    setMessage('')
+    setError('')
+    setDownloadUrl(null)
+  }
 
   const isUploading = status === 'uploading'
 
@@ -74,9 +90,8 @@ export default function LedgerAnalysisFeature() {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     setSelectedFile(file)
-    setMessage('')
-    setError('')
-    setStats(null)
+    setStatus('idle')
+    resetResults()
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -90,9 +105,9 @@ export default function LedgerAnalysisFeature() {
     const formData = new FormData()
     formData.append('file', selectedFile)
 
+    resetResults()
     setStatus('uploading')
-    setError('')
-    setMessage('')
+    setMessage('正在分析，请稍候…')
 
     try {
       const response = await fetch('/api/ledger-analysis', {
@@ -109,6 +124,7 @@ export default function LedgerAnalysisFeature() {
         } else {
           setError('分析失败，请稍后重试。')
         }
+        setMessage('')
         setStatus('error')
         return
       }
@@ -116,6 +132,7 @@ export default function LedgerAnalysisFeature() {
       if (contentType.includes('application/json')) {
         const payload = (await response.json()) as ApiError
         setError(payload?.error ?? '未获取到分析结果。')
+        setMessage('')
         setStatus('error')
         return
       }
@@ -125,21 +142,15 @@ export default function LedgerAnalysisFeature() {
       const filename =
         parseContentDisposition(disposition) ?? `${selectedFile.name.replace(/\.[^/.]+$/, '') || '12345台账'}-分析结果.xlsx`
 
-      const downloadUrl = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = downloadUrl
-      anchor.download = filename
-      document.body.appendChild(anchor)
-      anchor.click()
-      document.body.removeChild(anchor)
-      URL.revokeObjectURL(downloadUrl)
+      const objectUrl = URL.createObjectURL(blob)
+      setDownloadUrl(objectUrl)
 
       const processed = parseHeaderNumber(response.headers.get('X-Analysis-Processed'))
       const unmatched = parseHeaderNumber(response.headers.get('X-Analysis-Unmatched'))
       const total = parseHeaderNumber(response.headers.get('X-Analysis-Total'))
 
       setStats({ processed, unmatched, total, filename })
-      setMessage('分析完成，文件已下载。')
+      setMessage('分析完成，可下载报表查看详细数据。')
       setStatus('success')
       setSelectedFile(null)
       if (fileInputRef.current) {
@@ -148,7 +159,17 @@ export default function LedgerAnalysisFeature() {
     } catch (err) {
       console.error('Failed to request ledger analysis', err)
       setError('网络异常，无法完成分析，请稍后重试。')
+      setMessage('')
       setStatus('error')
+    }
+  }
+
+  const handleResetSelection = () => {
+    setSelectedFile(null)
+    setStatus('idle')
+    resetResults()
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -160,82 +181,124 @@ export default function LedgerAnalysisFeature() {
       transition={{ duration: 0.6 }}
       viewport={{ once: true }}
     >
-      <div className="space-y-6">
-        <div className="space-y-3">
-          <h2 className="text-3xl font-semibold text-white">12345 台账分析</h2>
-          <p className="text-white/70">
-            上传台账 Excel 或 CSV 文件，系统将自动识别“答复内容”中的关键信息，归类权属部门并生成包含“分析结果”“部门分析”“未匹配”三张工作表的报表。
-          </p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/80">
-          <p className="font-semibold text-white">使用说明</p>
-          <ul className="mt-3 list-disc space-y-2 pl-5">
-            <li>文件需包含“答复内容”列，建议使用 UTF-8 编码。</li>
-            <li>权属部门会根据关键词与正则规则自动匹配，并统计数量与占比。</li>
-            <li>未成功匹配的条目会保存在“未匹配”工作表中，方便人工复核。</li>
-          </ul>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="flex w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/20 bg-white/10 px-6 py-10 text-center text-white/80 transition hover:border-white/40 hover:bg-white/20">
-              <span className="text-lg font-medium">点击或拖拽文件到此处</span>
-              <span className="mt-2 text-sm text-white/60">{helperText}</span>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPT_FILE_TYPES}
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isUploading}
-              />
-            </label>
+      <div className="flex flex-col gap-8 lg:flex-row">
+        <div className="flex-1 space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-3xl font-semibold text-white">12345 台账分析</h2>
+            <p className="text-white/70">
+              上传台账 Excel 或 CSV 文件，系统将自动识别“答复内容”中的关键信息，归类权属部门并生成包含“分析结果”“部门分析”“未匹配”三张工作表的报表。
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              type="submit"
-              disabled={isUploading || !selectedFile}
-              className="rounded-full bg-sky-400 px-6 py-3 text-base font-semibold text-slate-900 transition hover:scale-105 disabled:cursor-not-allowed disabled:bg-sky-400/60"
-            >
-              {isUploading ? '分析中…' : '开始分析'}
-            </button>
-            {selectedFile && !isUploading ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedFile(null)
-                  setStats(null)
-                  setMessage('')
-                  setError('')
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = ''
-                  }
-                }}
-                className="rounded-full border border-white/30 px-6 py-3 text-base font-semibold text-white/80 transition hover:bg-white/10"
-              >
-                重新选择
-              </button>
-            ) : null}
-          </div>
-        </form>
-        {message ? <p className="text-green-300">{message}</p> : null}
-        {error ? <p className="text-rose-300">{error}</p> : null}
-        {stats ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white/80">
-            <p className="text-lg font-semibold text-white">本次分析摘要</p>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li>
-                已匹配条目：<span className="font-semibold text-sky-200">{stats.processed}</span>
-              </li>
-              <li>
-                未匹配条目：<span className="font-semibold text-amber-200">{stats.unmatched}</span>
-              </li>
-              <li>
-                总计条目数：<span className="font-semibold text-emerald-200">{stats.total}</span>
-              </li>
-              <li className="break-all text-xs text-white/60">导出文件：{stats.filename}</li>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/80">
+            <p className="font-semibold text-white">使用说明</p>
+            <ul className="mt-3 list-disc space-y-2 pl-5">
+              <li>文件需包含“答复内容”列，建议使用 UTF-8 编码。</li>
+              <li>权属部门会根据关键词与正则规则自动匹配，并统计数量与占比。</li>
+              <li>未成功匹配的条目会保存在“未匹配”工作表中，方便人工复核。</li>
             </ul>
           </div>
-        ) : null}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="flex w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/20 bg-white/10 px-6 py-10 text-center text-white/80 transition hover:border-white/40 hover:bg-white/20">
+                <span className="text-lg font-medium">点击或拖拽文件到此处</span>
+                <span className="mt-2 text-sm text-white/60">{helperText}</span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPT_FILE_TYPES}
+                  className="hidden"
+                  onChange={handleFileChange}
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                type="submit"
+                disabled={isUploading || !selectedFile}
+                className="rounded-full bg-sky-400 px-6 py-3 text-base font-semibold text-slate-900 transition hover:scale-105 disabled:cursor-not-allowed disabled:bg-sky-400/60"
+              >
+                {isUploading ? '分析中…' : '开始分析'}
+              </button>
+              {selectedFile && !isUploading ? (
+                <button
+                  type="button"
+                  onClick={handleResetSelection}
+                  className="rounded-full border border-white/30 px-6 py-3 text-base font-semibold text-white/80 transition hover:bg-white/10"
+                >
+                  重新选择
+                </button>
+              ) : null}
+            </div>
+          </form>
+        </div>
+        <div className="flex-1">
+          <div className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-6 text-white/80">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/50">当前状态</p>
+                <p className="mt-1 text-xl font-semibold text-white">
+                  {status === 'uploading'
+                    ? '分析中…'
+                    : status === 'success'
+                    ? '分析完成'
+                    : status === 'error'
+                    ? '分析失败'
+                    : '等待上传'}
+                </p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-white">分析总结</p>
+                {stats ? (
+                  <ul className="mt-3 space-y-2 text-sm">
+                    <li>
+                      已匹配条目：<span className="font-semibold text-sky-200">{stats.processed}</span>
+                    </li>
+                    <li>
+                      未匹配条目：<span className="font-semibold text-amber-200">{stats.unmatched}</span>
+                    </li>
+                    <li>
+                      总计条目数：<span className="font-semibold text-emerald-200">{stats.total}</span>
+                    </li>
+                    <li className="break-all text-xs text-white/60">导出文件：{stats.filename}</li>
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-white/60">完成分析后将在此展示摘要数据。</p>
+                )}
+              </div>
+              {message ? <p className="text-sm text-emerald-200">{message}</p> : null}
+              {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+            </div>
+            <div className="mt-6">
+              {stats && downloadUrl ? (
+                <a
+                  href={downloadUrl}
+                  download={stats.filename}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-400 px-5 py-3 text-base font-semibold text-slate-900 transition hover:scale-[1.02]"
+                >
+                  下载分析结果
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M8 3.5V10.5M8 10.5L5.5 8M8 10.5L10.5 8M4 12.5H12"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </a>
+              ) : (
+                <p className="text-xs text-white/50">完成分析后可下载分析报表。</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </motion.div>
   )

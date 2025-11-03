@@ -25,14 +25,14 @@ function App() {
             <AudioConvertFeature />
           </Suspense>
         </section>
-        <section className="mt-16" id="ledger-analysis">
-          <Suspense fallback={<div className="text-center text-lg">加载 12345 台账分析工具...</div>}>
-            <LedgerAnalysisFeature />
-          </Suspense>
-        </section>
         <section className="mt-16" id="watermark">
           <Suspense fallback={<div className="text-center text-lg">加载自定义水印工具...</div>}>
             <WatermarkFeature />
+          </Suspense>
+        </section>
+        <section className="mt-16" id="ledger-analysis">
+          <Suspense fallback={<div className="text-center text-lg">加载 12345 台账分析工具...</div>}>
+            <LedgerAnalysisFeature />
           </Suspense>
         </section>
       </div>
