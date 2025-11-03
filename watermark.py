@@ -298,7 +298,7 @@ def compute_layout_sizes(
         top_padding + date_line_height + date_line_spacing - weekday_bbox[1] - content_origin_shift
     )
 
-    location_start_x = left_padding
+    location_start_x = time_box[0]
     location_start_y = top_padding + time_height + location_gap - content_origin_shift
 
     right_edge = width - right_padding
