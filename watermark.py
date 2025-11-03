@@ -575,8 +575,14 @@ def generate_watermark(
                 fill=COLOR_DARK_GRAY_TEXT,
                 stroke_width=0,
             )
+            left_bbox = draw.textbbox(
+                (0, 0), left_text, font=font, stroke_width=stroke_width
+            )
+            left_width = left_bbox[2] - left_bbox[0]
+            left_gap = 4
+            left_text_x = right_text_x - left_gap - left_width
             draw.text(
-                (text_x, text_y),
+                (left_text_x, text_y),
                 left_text,
                 font=font,
                 fill=COLOR_WHITE,
