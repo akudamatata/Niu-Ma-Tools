@@ -139,7 +139,8 @@ def compute_layout_sizes(
     location_font = load_font(location_font_size_current)
     lines_cache: List[str] | None = None
     location_heights: List[int] = []
-    location_offsets: List[int] = []
+    location_offsets_y: List[int] = []
+    location_offsets_x: List[int] = []
     location_block_height = 0
 
     right_block_layout: Dict[str, object] | None = None
@@ -206,13 +207,15 @@ def compute_layout_sizes(
             continue
 
         line_heights = []
-        line_offsets = []
+        line_offsets_y = []
+        line_offsets_x = []
         total_height = 0
         for line in lines:
             bbox = draw.textbbox((0, 0), line, font=location_font)
             height = bbox[3] - bbox[1]
             line_heights.append(height)
-            line_offsets.append(-bbox[1])
+            line_offsets_y.append(-bbox[1])
+            line_offsets_x.append(-bbox[0])
             total_height += height
 
         if len(lines) > 1:
@@ -220,7 +223,8 @@ def compute_layout_sizes(
 
         location_block_height = total_height
         location_heights = line_heights
-        location_offsets = line_offsets
+        location_offsets_y = line_offsets_y
+        location_offsets_x = line_offsets_x
         lines_cache = lines
         break
 
@@ -228,13 +232,15 @@ def compute_layout_sizes(
         location_font = load_font(location_font_size_current)
         lines_cache = wrap_text(draw, location_text, location_font, available_width) or [location_text]
         location_heights = []
-        location_offsets = []
+        location_offsets_y = []
+        location_offsets_x = []
         location_block_height = 0
         for line in lines_cache:
             bbox = draw.textbbox((0, 0), line, font=location_font)
             height = bbox[3] - bbox[1]
             location_heights.append(height)
-            location_offsets.append(-bbox[1])
+            location_offsets_y.append(-bbox[1])
+            location_offsets_x.append(-bbox[0])
             location_block_height += height
         if len(lines_cache) > 1:
             location_block_height += location_line_spacing * (len(lines_cache) - 1)
@@ -320,7 +326,8 @@ def compute_layout_sizes(
         'location_font': location_font,
         'location_lines': lines_cache,
         'location_heights': location_heights,
-        'location_offsets': location_offsets,
+        'location_offsets_y': location_offsets_y,
+        'location_offsets_x': location_offsets_x,
         'location_start': (location_start_x, location_start_y),
         'location_line_spacing': location_line_spacing,
         'right_block': right_block_layout,
@@ -491,10 +498,18 @@ def generate_watermark(
     location_font = layout['location_font']
     location_start_x, location_start_y = layout['location_start']
     current_y = location_start_y
-    for line, offset, line_height in zip(
-        layout['location_lines'], layout['location_offsets'], layout['location_heights']
+    for line, offset_y, line_height, offset_x in zip(
+        layout['location_lines'],
+        layout['location_offsets_y'],
+        layout['location_heights'],
+        layout['location_offsets_x'],
     ):
-        draw.text((location_start_x, current_y + offset), line, font=location_font, fill=primary_color)
+        draw.text(
+            (location_start_x + offset_x, current_y + offset_y),
+            line,
+            font=location_font,
+            fill=primary_color,
+        )
         current_y += line_height + layout['location_line_spacing']
 
     right_block = layout['right_block']
