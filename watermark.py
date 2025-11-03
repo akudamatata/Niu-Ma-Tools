@@ -146,10 +146,19 @@ def compute_layout_sizes(
     right_block_layout: Dict[str, object] | None = None
     available_width = max(width - left_padding - right_padding, int(width * 0.25))
 
+    stroke_width = 1
+
     for _ in range(10):
-        title_font = load_font(location_font_size_current)
-        second_font_size = max(int(location_font_size_current * second_ratio), min_second_font_size)
-        third_font_size = max(int(location_font_size_current * third_ratio), min_third_font_size)
+        title_font_size = max(int(round(location_font_size_current * 1.1)), 1)
+        title_font = load_font(title_font_size)
+        second_font_size = max(
+            int(round(location_font_size_current * second_ratio * 1.1)),
+            min_second_font_size,
+        )
+        third_font_size = max(
+            int(round(location_font_size_current * third_ratio * 1.1)),
+            min_third_font_size,
+        )
         second_font = load_font(second_font_size)
         third_font = load_font(third_font_size)
         right_line_spacing = max(int(location_font_size_current * 0.3), 6)
@@ -162,7 +171,7 @@ def compute_layout_sizes(
             ('相机真实时间', second_font, 'second'),
             (f'防伪 {security_code}', third_font, 'third'),
         ]:
-            bbox = draw.textbbox((0, 0), text, font=font)
+            bbox = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_width)
             width_span = bbox[2] - bbox[0]
             height_span = bbox[3] - bbox[1]
             max_right_width = max(max_right_width, width_span)
@@ -246,9 +255,16 @@ def compute_layout_sizes(
             location_block_height += location_line_spacing * (len(lines_cache) - 1)
 
     if right_block_layout is None:
-        title_font = load_font(location_font_size_current)
-        second_font_size = max(int(location_font_size_current * second_ratio), min_second_font_size)
-        third_font_size = max(int(location_font_size_current * third_ratio), min_third_font_size)
+        title_font_size = max(int(round(location_font_size_current * 1.1)), 1)
+        title_font = load_font(title_font_size)
+        second_font_size = max(
+            int(round(location_font_size_current * second_ratio * 1.1)),
+            min_second_font_size,
+        )
+        third_font_size = max(
+            int(round(location_font_size_current * third_ratio * 1.1)),
+            min_third_font_size,
+        )
         second_font = load_font(second_font_size)
         third_font = load_font(third_font_size)
         right_line_spacing = max(int(location_font_size_current * 0.3), 6)
@@ -260,7 +276,7 @@ def compute_layout_sizes(
             ('相机真实时间', second_font, 'second'),
             (f'防伪 {security_code}', third_font, 'third'),
         ]:
-            bbox = draw.textbbox((0, 0), text, font=font)
+            bbox = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_width)
             width_span = bbox[2] - bbox[0]
             height_span = bbox[3] - bbox[1]
             max_right_width = max(max_right_width, width_span)
@@ -298,7 +314,7 @@ def compute_layout_sizes(
         top_padding + date_line_height + date_line_spacing - weekday_bbox[1] - content_origin_shift
     )
 
-    location_start_x = time_box[0]
+    location_start_x = time_box[0] + 2
     location_start_y = top_padding + time_height + location_gap - content_origin_shift
 
     right_edge = width - right_padding
@@ -367,8 +383,11 @@ def generate_watermark(
     draw_measure = ImageDraw.Draw(scratch)
 
     primary_color = (255, 255, 255, 255)
-    secondary_color = (176, 176, 176, 255)
     separator_color = (251, 187, 49, 255)
+    color_yellow = (249, 199, 79, 255)
+    gray_bg = (120, 120, 120, 255)
+    stroke_width = 1
+    stroke_fill = (0, 0, 0, 64)
 
     time_font_size = max(int(overlay_base_height * 0.42), 1)
     time_font = load_font(time_font_size)
@@ -515,14 +534,86 @@ def generate_watermark(
     right_block = layout['right_block']
     current_y = right_block['top']
     for line in right_block['lines']:
-        if line['role'] == 'title':
-            fill = separator_color
-        elif line['role'] == 'second':
-            fill = secondary_color
-        else:
-            fill = primary_color
         text_x = right_block['right_edge'] - line['width']
-        draw.text((text_x, current_y + line['offset']), line['text'], font=line['font'], fill=fill)
+        text_y = current_y + line['offset']
+        font = line['font']
+        if line['text'] == '今日水印':
+            draw.text(
+                (text_x, text_y),
+                '今',
+                font=font,
+                fill=primary_color,
+                stroke_width=stroke_width,
+                stroke_fill=stroke_fill,
+            )
+            jin_bbox = draw.textbbox(
+                (text_x, text_y),
+                '今',
+                font=font,
+                stroke_width=stroke_width,
+            )
+            stroke_top = jin_bbox[1] + (jin_bbox[3] - jin_bbox[1]) * 0.45
+            stroke_bottom = jin_bbox[1] + (jin_bbox[3] - jin_bbox[1]) * 0.62
+            draw.rectangle(
+                (
+                    jin_bbox[0] + 1,
+                    int(round(stroke_top)),
+                    jin_bbox[2] - 1,
+                    int(round(stroke_bottom)),
+                ),
+                fill=color_yellow,
+            )
+            rest_x = jin_bbox[2]
+            draw.text(
+                (rest_x, text_y),
+                '日水印',
+                font=font,
+                fill=primary_color,
+                stroke_width=stroke_width,
+                stroke_fill=stroke_fill,
+            )
+        elif line['text'] == '相机真实时间':
+            prefix = '相机'
+            suffix = '真实时间'
+            prefix_bbox = draw.textbbox(
+                (text_x, text_y),
+                prefix,
+                font=font,
+                stroke_width=stroke_width,
+            )
+            suffix_x = prefix_bbox[2]
+            suffix_bbox = draw.textbbox(
+                (suffix_x, text_y),
+                suffix,
+                font=font,
+                stroke_width=stroke_width,
+            )
+            draw.rectangle(suffix_bbox, fill=gray_bg)
+            draw.text(
+                (text_x, text_y),
+                prefix,
+                font=font,
+                fill=primary_color,
+                stroke_width=stroke_width,
+                stroke_fill=stroke_fill,
+            )
+            draw.text(
+                (suffix_x, text_y),
+                suffix,
+                font=font,
+                fill=primary_color,
+                stroke_width=stroke_width,
+                stroke_fill=stroke_fill,
+            )
+        else:
+            draw.text(
+                (text_x, text_y),
+                line['text'],
+                font=font,
+                fill=primary_color,
+                stroke_width=stroke_width,
+                stroke_fill=stroke_fill,
+            )
         current_y += line['height'] + right_block['line_spacing']
 
     base_rgba = base_image.convert('RGBA')
