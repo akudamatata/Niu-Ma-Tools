@@ -13,6 +13,10 @@ from PIL import Image, ImageDraw, ImageFont
 ASSETS_DIR = Path(__file__).resolve().parent / 'assets' / 'watermark'
 FONT_PATH = Path(__file__).resolve().parent / 'assets' / 'fonts' / '汉仪旗黑X2-65W.ttf'
 FALLBACK_FONT_PATH = Path(__file__).resolve().parent / 'assets' / 'fonts' / 'NotoSansSC-Regular.otf'
+
+COLOR_WHITE = (255, 255, 255, 255)
+COLOR_DARK_GRAY_TEXT = (74, 74, 74, 255)  # #4A4A4A 深灰文字
+COLOR_LIGHT_GRAY_BG = (198, 200, 204, 255)  # #C6C8CC 浅灰底
 def get_current_info() -> Dict[str, str]:
     now = datetime.now()
     weekdays = ['一', '二', '三', '四', '五', '六', '日']
@@ -384,8 +388,6 @@ def generate_watermark(
 
     primary_color = (255, 255, 255, 255)
     separator_color = (251, 187, 49, 255)
-    color_yellow = (249, 199, 79, 255)
-    gray_bg = (120, 120, 120, 255)
     stroke_width = 1
     stroke_fill = (0, 0, 0, 64)
 
@@ -533,79 +535,66 @@ def generate_watermark(
 
     right_block = layout['right_block']
     current_y = right_block['top']
+    right_align_edge = right_block.get('right_align_edge')
+    pending_title: Dict[str, object] | None = None
     for line in right_block['lines']:
         text_x = right_block['right_edge'] - line['width']
         text_y = current_y + line['offset']
         font = line['font']
         if line['text'] == '今日水印':
-            draw.text(
-                (text_x, text_y),
-                '今',
-                font=font,
-                fill=primary_color,
-                stroke_width=stroke_width,
-                stroke_fill=stroke_fill,
-            )
-            jin_bbox = draw.textbbox(
-                (text_x, text_y),
-                '今',
-                font=font,
-                stroke_width=stroke_width,
-            )
-            stroke_top = jin_bbox[1] + (jin_bbox[3] - jin_bbox[1]) * 0.45
-            stroke_bottom = jin_bbox[1] + (jin_bbox[3] - jin_bbox[1]) * 0.62
-            draw.rectangle(
-                (
-                    jin_bbox[0] + 1,
-                    int(round(stroke_top)),
-                    jin_bbox[2] - 1,
-                    int(round(stroke_bottom)),
-                ),
-                fill=color_yellow,
-            )
-            rest_x = jin_bbox[2]
-            draw.text(
-                (rest_x, text_y),
-                '日水印',
-                font=font,
-                fill=primary_color,
-                stroke_width=stroke_width,
-                stroke_fill=stroke_fill,
-            )
+            pending_title = {
+                'line': line,
+                'text_y': text_y,
+            }
         elif line['text'] == '相机真实时间':
-            prefix = '相机'
-            suffix = '真实时间'
-            prefix_bbox = draw.textbbox(
-                (text_x, text_y),
-                prefix,
-                font=font,
-                stroke_width=stroke_width,
+            left_text = '相机'
+            right_text = '真实时间'
+            right_bbox = draw.textbbox((0, 0), right_text, font=font, stroke_width=0)
+            rw = right_bbox[2] - right_bbox[0]
+            rh = right_bbox[3] - right_bbox[1]
+
+            pad_x = 8
+            pad_y = 3
+            radius = 6
+
+            right_text_x = text_x + line['width'] - rw
+            rect_x1 = right_text_x - pad_x
+            rect_y1 = current_y - 1 - pad_y
+            rect_x2 = rect_x1 + rw + pad_x * 2
+            rect_y2 = rect_y1 + rh + pad_y * 2
+
+            draw.rounded_rectangle(
+                (rect_x1, rect_y1, rect_x2, rect_y2),
+                radius=radius,
+                fill=COLOR_LIGHT_GRAY_BG,
             )
-            suffix_x = prefix_bbox[2]
-            suffix_bbox = draw.textbbox(
-                (suffix_x, text_y),
-                suffix,
-                font=font,
-                stroke_width=stroke_width,
-            )
-            draw.rectangle(suffix_bbox, fill=gray_bg)
             draw.text(
-                (text_x, text_y),
-                prefix,
+                (right_text_x, text_y),
+                right_text,
                 font=font,
-                fill=primary_color,
+                fill=COLOR_DARK_GRAY_TEXT,
+                stroke_width=0,
+            )
+            left_bbox = draw.textbbox(
+                (0, 0), left_text, font=font, stroke_width=stroke_width
+            )
+            left_width = left_bbox[2] - left_bbox[0]
+            left_gap = 4
+            left_text_x = right_text_x - left_gap - left_width
+            draw.text(
+                (left_text_x, text_y),
+                left_text,
+                font=font,
+                fill=COLOR_WHITE,
                 stroke_width=stroke_width,
                 stroke_fill=stroke_fill,
             )
-            draw.text(
-                (suffix_x, text_y),
-                suffix,
-                font=font,
-                fill=primary_color,
-                stroke_width=stroke_width,
-                stroke_fill=stroke_fill,
-            )
+            right_align_edge = rect_x2
+            right_block['right_align_edge'] = rect_x2
         else:
+            if line['text'].startswith('防伪'):
+                align_edge = right_align_edge if right_align_edge is not None else right_block['right_edge']
+                text_x = align_edge - line['width'] + 15
             draw.text(
                 (text_x, text_y),
                 line['text'],
@@ -615,6 +604,37 @@ def generate_watermark(
                 stroke_fill=stroke_fill,
             )
         current_y += line['height'] + right_block['line_spacing']
+
+    if pending_title is not None:
+        align_edge = right_block.get('right_align_edge', right_align_edge)
+        if align_edge is None:
+            align_edge = right_block['right_edge']
+        line = pending_title['line']  # type: ignore[assignment]
+        text_y = pending_title['text_y']  # type: ignore[assignment]
+        text_x = align_edge - line['width']
+        draw.text(
+            (text_x, text_y),
+            '今',
+            font=line['font'],
+            fill=primary_color,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill,
+        )
+        jin_bbox = draw.textbbox(
+            (text_x, text_y),
+            '今',
+            font=line['font'],
+            stroke_width=stroke_width,
+        )
+        rest_x = jin_bbox[2]
+        draw.text(
+            (rest_x, text_y),
+            '日水印',
+            font=line['font'],
+            fill=primary_color,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill,
+        )
 
     base_rgba = base_image.convert('RGBA')
     paste_y = height - layout['content_height'] - bottom_padding
