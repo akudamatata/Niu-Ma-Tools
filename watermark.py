@@ -13,6 +13,10 @@ from PIL import Image, ImageDraw, ImageFont
 ASSETS_DIR = Path(__file__).resolve().parent / 'assets' / 'watermark'
 FONT_PATH = Path(__file__).resolve().parent / 'assets' / 'fonts' / '汉仪旗黑X2-65W.ttf'
 FALLBACK_FONT_PATH = Path(__file__).resolve().parent / 'assets' / 'fonts' / 'NotoSansSC-Regular.otf'
+
+COLOR_WHITE = (255, 255, 255, 255)
+COLOR_DARK_GRAY_TEXT = (74, 74, 74, 255)  # #4A4A4A 深灰文字
+COLOR_LIGHT_GRAY_BG = (198, 200, 204, 255)  # #C6C8CC 浅灰底
 def get_current_info() -> Dict[str, str]:
     now = datetime.now()
     weekdays = ['一', '二', '三', '四', '五', '六', '日']
@@ -384,8 +388,6 @@ def generate_watermark(
 
     primary_color = (255, 255, 255, 255)
     separator_color = (251, 187, 49, 255)
-    color_yellow = (249, 199, 79, 255)
-    gray_bg = (120, 120, 120, 255)
     stroke_width = 1
     stroke_fill = (0, 0, 0, 64)
 
@@ -552,17 +554,6 @@ def generate_watermark(
                 font=font,
                 stroke_width=stroke_width,
             )
-            stroke_top = jin_bbox[1] + (jin_bbox[3] - jin_bbox[1]) * 0.45
-            stroke_bottom = jin_bbox[1] + (jin_bbox[3] - jin_bbox[1]) * 0.62
-            draw.rectangle(
-                (
-                    jin_bbox[0] + 1,
-                    int(round(stroke_top)),
-                    jin_bbox[2] - 1,
-                    int(round(stroke_bottom)),
-                ),
-                fill=color_yellow,
-            )
             rest_x = jin_bbox[2]
             draw.text(
                 (rest_x, text_y),
@@ -573,35 +564,39 @@ def generate_watermark(
                 stroke_fill=stroke_fill,
             )
         elif line['text'] == '相机真实时间':
-            prefix = '相机'
-            suffix = '真实时间'
-            prefix_bbox = draw.textbbox(
-                (text_x, text_y),
-                prefix,
-                font=font,
-                stroke_width=stroke_width,
-            )
-            suffix_x = prefix_bbox[2]
-            suffix_bbox = draw.textbbox(
-                (suffix_x, text_y),
-                suffix,
-                font=font,
-                stroke_width=stroke_width,
-            )
-            draw.rectangle(suffix_bbox, fill=gray_bg)
-            draw.text(
-                (text_x, text_y),
-                prefix,
-                font=font,
-                fill=primary_color,
-                stroke_width=stroke_width,
-                stroke_fill=stroke_fill,
+            left_text = '相机'
+            right_text = '真实时间'
+            right_bbox = draw.textbbox((0, 0), right_text, font=font, stroke_width=0)
+            rw = right_bbox[2] - right_bbox[0]
+            rh = right_bbox[3] - right_bbox[1]
+
+            pad_x = 8
+            pad_y = 3
+            radius = 6
+
+            right_text_x = text_x + line['width'] - rw
+            rect_x1 = right_text_x - pad_x
+            rect_y1 = current_y - 1 - pad_y
+            rect_x2 = rect_x1 + rw + pad_x * 2
+            rect_y2 = rect_y1 + rh + pad_y * 2
+
+            draw.rounded_rectangle(
+                (rect_x1, rect_y1, rect_x2, rect_y2),
+                radius=radius,
+                fill=COLOR_LIGHT_GRAY_BG,
             )
             draw.text(
-                (suffix_x, text_y),
-                suffix,
+                (right_text_x, text_y),
+                right_text,
                 font=font,
-                fill=primary_color,
+                fill=COLOR_DARK_GRAY_TEXT,
+                stroke_width=0,
+            )
+            draw.text(
+                (text_x, text_y),
+                left_text,
+                font=font,
+                fill=COLOR_WHITE,
                 stroke_width=stroke_width,
                 stroke_fill=stroke_fill,
             )
