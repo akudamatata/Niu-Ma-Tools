@@ -6,11 +6,18 @@ const ACCEPT_FILE_TYPES = '.xlsx,.xls,.csv'
 
 type AnalysisStatus = 'idle' | 'uploading' | 'success' | 'error'
 
+type AnalysisBreakdownItem = {
+  department: string
+  count: number
+  ratio: string
+}
+
 type AnalysisStats = {
   processed: number
   unmatched: number
   total: number
   filename: string
+  breakdown: AnalysisBreakdownItem[]
 } | null
 
 type ApiError = {
@@ -51,6 +58,63 @@ function parseHeaderNumber(value: string | null): number {
 
   const parsed = Number.parseInt(value, 10)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function parseBreakdownHeader(value: string | null): AnalysisBreakdownItem[] {
+  if (!value) {
+    return []
+  }
+
+  try {
+    const decoded = decodeURIComponent(value)
+    const payload = JSON.parse(decoded) as unknown
+
+    if (!Array.isArray(payload)) {
+      return []
+    }
+
+    return payload
+      .map((item) => {
+        if (item && typeof item === 'object') {
+          const data = item as Record<string, unknown>
+          const department =
+            typeof data.department === 'string'
+              ? data.department
+              : typeof data['department'] === 'string'
+              ? (data['department'] as string)
+              : typeof data['权属部门'] === 'string'
+              ? (data['权属部门'] as string)
+              : ''
+          const countValue =
+            typeof data.count === 'number'
+              ? data.count
+              : typeof data['数量'] === 'number'
+              ? Number(data['数量'])
+              : Number.NaN
+          const ratioValue =
+            typeof data.ratio === 'string'
+              ? data.ratio
+              : typeof data['占比'] === 'string'
+              ? (data['占比'] as string)
+              : ''
+
+          if (!department) {
+            return null
+          }
+
+          const count = Number.isFinite(countValue) ? countValue : 0
+          const ratio = ratioValue || ''
+
+          return { department, count, ratio }
+        }
+
+        return null
+      })
+      .filter((item): item is AnalysisBreakdownItem => Boolean(item))
+  } catch (error) {
+    console.warn('Failed to parse analysis breakdown header', error)
+    return []
+  }
 }
 
 export default function LedgerAnalysisFeature() {
@@ -148,8 +212,9 @@ export default function LedgerAnalysisFeature() {
       const processed = parseHeaderNumber(response.headers.get('X-Analysis-Processed'))
       const unmatched = parseHeaderNumber(response.headers.get('X-Analysis-Unmatched'))
       const total = parseHeaderNumber(response.headers.get('X-Analysis-Total'))
+      const breakdown = parseBreakdownHeader(response.headers.get('X-Analysis-Breakdown'))
 
-      setStats({ processed, unmatched, total, filename })
+      setStats({ processed, unmatched, total, filename, breakdown })
       setMessage('分析完成，可下载报表查看详细数据。')
       setStatus('success')
       setSelectedFile(null)
@@ -250,18 +315,66 @@ export default function LedgerAnalysisFeature() {
               <div>
                 <p className="text-lg font-semibold text-white">分析总结</p>
                 {stats ? (
-                  <ul className="mt-3 space-y-2 text-sm">
-                    <li>
-                      已匹配条目：<span className="font-semibold text-sky-200">{stats.processed}</span>
-                    </li>
-                    <li>
-                      未匹配条目：<span className="font-semibold text-amber-200">{stats.unmatched}</span>
-                    </li>
-                    <li>
-                      总计条目数：<span className="font-semibold text-emerald-200">{stats.total}</span>
-                    </li>
-                    <li className="break-all text-xs text-white/60">导出文件：{stats.filename}</li>
-                  </ul>
+                  <div className="mt-3 space-y-3 text-sm">
+                    <div
+                      className={[
+                        'grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-center',
+                        'sm:grid-cols-3'
+                      ].join(' ')}
+                    >
+                      <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-[0.3em] text-sky-200/70">已办理</p>
+                        <p className="text-2xl font-semibold text-sky-200">
+                          {stats.processed.toLocaleString()}
+                          <span className="ml-1 text-sm font-medium">件</span>
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-[0.3em] text-amber-200/70">核实退回</p>
+                        <p className="text-2xl font-semibold text-amber-200">
+                          {stats.unmatched.toLocaleString()}
+                          <span className="ml-1 text-sm font-medium">件</span>
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">总计工单</p>
+                        <p className="text-2xl font-semibold text-emerald-200">
+                          {stats.total.toLocaleString()}
+                          <span className="ml-1 text-sm font-medium">件</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
+                      <p className="break-all">
+                        导出文件：<span className="font-medium text-white/80">{stats.filename}</span>
+                      </p>
+                    </div>
+                    {stats.breakdown.length > 0 ? (
+                      <div>
+                        <p className="text-sm font-semibold text-white">部门分析</p>
+                        <div className="mt-2 max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-slate-900/40">
+                          <table className="min-w-full text-left text-xs text-white/80">
+                            <thead className="sticky top-0 bg-slate-900/70 backdrop-blur">
+                              <tr>
+                                <th className="px-4 py-3 font-medium text-white/70">权属部门</th>
+                                <th className="px-4 py-3 font-medium text-white/70 text-right">数量</th>
+                                <th className="px-4 py-3 font-medium text-white/70 text-right">占比</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {stats.breakdown.map((item) => (
+                                <tr key={`${item.department}-${item.count}-${item.ratio || 'empty'}`} className="border-t border-white/5">
+                                  <td className="px-4 py-2 font-medium text-white">{item.department}</td>
+                                  <td className="px-4 py-2 text-right text-white/80">{item.count.toLocaleString()}</td>
+                                  <td className="px-4 py-2 text-right text-white/60">{item.ratio || '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <p className="mt-3 text-sm text-white/60">完成分析后将在此展示摘要数据。</p>
                 )}

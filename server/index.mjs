@@ -305,7 +305,8 @@ app.post('/api/ledger-analysis', upload.single('file'), async (req, res) => {
     return res.status(400).json({ ok: false, error: '请上传一个 Excel 或 CSV 文件。' })
   }
 
-  const originalName = req.file.originalname || 'ledger.xlsx'
+  const originalNameRaw = req.file.originalname || 'ledger.xlsx'
+  const originalName = decodePotentialLatin1(originalNameRaw)
   const ext = extname(originalName).toLowerCase()
 
   if (!['.xlsx', '.xls', '.csv'].includes(ext)) {
@@ -499,6 +500,12 @@ app.post('/api/ledger-analysis', upload.single('file'), async (req, res) => {
     res.setHeader('X-Analysis-Processed', String(totalProcessed))
     res.setHeader('X-Analysis-Unmatched', String(totalUnmatched))
     res.setHeader('X-Analysis-Total', String(grandTotal))
+    const breakdown = analysisRows.map((row) => ({
+      department: row['权属部门'],
+      count: row['数量'],
+      ratio: row['占比'] ?? ''
+    }))
+    res.setHeader('X-Analysis-Breakdown', encodeURIComponent(JSON.stringify(breakdown)))
 
     return res.send(Buffer.from(buffer))
   } catch (error) {
