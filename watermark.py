@@ -535,34 +535,17 @@ def generate_watermark(
 
     right_block = layout['right_block']
     current_y = right_block['top']
+    right_align_edge = right_block.get('right_align_edge')
+    pending_title: Dict[str, object] | None = None
     for line in right_block['lines']:
         text_x = right_block['right_edge'] - line['width']
         text_y = current_y + line['offset']
         font = line['font']
         if line['text'] == '今日水印':
-            draw.text(
-                (text_x, text_y),
-                '今',
-                font=font,
-                fill=primary_color,
-                stroke_width=stroke_width,
-                stroke_fill=stroke_fill,
-            )
-            jin_bbox = draw.textbbox(
-                (text_x, text_y),
-                '今',
-                font=font,
-                stroke_width=stroke_width,
-            )
-            rest_x = jin_bbox[2]
-            draw.text(
-                (rest_x, text_y),
-                '日水印',
-                font=font,
-                fill=primary_color,
-                stroke_width=stroke_width,
-                stroke_fill=stroke_fill,
-            )
+            pending_title = {
+                'line': line,
+                'text_y': text_y,
+            }
         elif line['text'] == '相机真实时间':
             left_text = '相机'
             right_text = '真实时间'
@@ -600,7 +583,12 @@ def generate_watermark(
                 stroke_width=stroke_width,
                 stroke_fill=stroke_fill,
             )
+            right_align_edge = rect_x2
+            right_block['right_align_edge'] = rect_x2
         else:
+            if line['text'].startswith('防伪'):
+                align_edge = right_align_edge if right_align_edge is not None else right_block['right_edge']
+                text_x = align_edge - line['width'] + 15
             draw.text(
                 (text_x, text_y),
                 line['text'],
@@ -610,6 +598,37 @@ def generate_watermark(
                 stroke_fill=stroke_fill,
             )
         current_y += line['height'] + right_block['line_spacing']
+
+    if pending_title is not None:
+        align_edge = right_block.get('right_align_edge', right_align_edge)
+        if align_edge is None:
+            align_edge = right_block['right_edge']
+        line = pending_title['line']  # type: ignore[assignment]
+        text_y = pending_title['text_y']  # type: ignore[assignment]
+        text_x = align_edge - line['width']
+        draw.text(
+            (text_x, text_y),
+            '今',
+            font=line['font'],
+            fill=primary_color,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill,
+        )
+        jin_bbox = draw.textbbox(
+            (text_x, text_y),
+            '今',
+            font=line['font'],
+            stroke_width=stroke_width,
+        )
+        rest_x = jin_bbox[2]
+        draw.text(
+            (rest_x, text_y),
+            '日水印',
+            font=line['font'],
+            fill=primary_color,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill,
+        )
 
     base_rgba = base_image.convert('RGBA')
     paste_y = height - layout['content_height'] - bottom_padding
