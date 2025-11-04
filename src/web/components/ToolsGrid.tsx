@@ -20,10 +20,10 @@ const tools = [
     status: '可用'
   },
   {
-    name: '音频降噪',
-    description: '借助 AI 降噪，让声音更纯净。',
-    href: '#',
-    status: '敬请期待'
+    name: '聘用人员工资计算器',
+    description: '快速计算聘用人员的工资待遇，提升人事效率。',
+    href: 'https://www.boomboomboom.ggff.net/',
+    status: '可用'
   },
   {
     name: '语音转文字',
