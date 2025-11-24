@@ -60,71 +60,75 @@ def draw_left_panel(
     group_text: str = "松州大队",
 ) -> None:
     """
-    Draws the new blue-card style left panel inside the given box.
-
-    box = (left, top, right, bottom) in overlay coordinates.
+    Draw the blue TV-style card inside the given box.
+    Only draw inside the box – do NOT fill the whole overlay.
     """
 
-    #
-    # Bottom watermark layout
-    #
-    # Full-width overlay at bottom of the image:
+    # ### Bottom watermark layout
     #
     # +-----------------------------------------------------------------------+
-    # | LEFT PANEL (new blue card style)     | RIGHT PANEL (unchanged)        |
-    # |                                      |                                 |
-    # |  +----------------------------------------------------+                |
-    # |  | [CATEGORY]  [GROUP TEXT]                           |                |
-    # |  |----------------------------------------------------|                |
-    # |  |  HH:MM                 YYYY年MM月DD日              |                |
-    # |  |                                                            今日水印 |
-    # |  |  ■ Location text (single or wrapped line)          |          相机  |
-    # |  +----------------------------------------------------+        真实时间 |
-    # |                                      |                       防伪 ABC123 |
+    # |   [BLUE CARD]                                  |  今日水印 block       |
+    # |                                               |                        |
+    # |   +---------------------------------------+   |   今日水印            |
+    # |   | [CATEGORY]   [GROUP TEXT]            |   |   相机  真实时间      |
+    # |   |--------------------------------------|   |   防伪 H11RSXMX4...   |
+    # |   |  HH:MM          YYYY年MM月DD日       |   |                        |
+    # |   |  ■ Location text (1–2 lines)         |   |                        |
+    # |   +---------------------------------------+   |                        |
     # +-----------------------------------------------------------------------+
-    #
 
     left, top, right, bottom = box
     panel_width = right - left
     panel_height = bottom - top
 
-    BLUE_BG = (20, 80, 200, 210)
-    BLUE_HEADER = (20, 80, 200, 255)
-    YELLOW_HEADER = (253, 217, 46, 255)
+    BLUE_BG = (20, 80, 200, 190)
+    YELLOW_LABEL = (253, 217, 46, 255)
     WHITE = (255, 255, 255, 255)
     RED_DOT = (220, 20, 40, 255)
-    ARROW_COLOR = (255, 255, 255, 180)
+    ARROW_COLOR = (255, 255, 255, 200)
 
-    radius = int(min(panel_width, panel_height) * 0.08)
-    radius = max(radius, 4)
-    draw.rounded_rectangle((left, top, right, bottom), radius=radius, fill=BLUE_BG)
+    radius = max(int(min(panel_width, panel_height) * 0.08), 4)
+    draw.rounded_rectangle(box, radius=radius, fill=BLUE_BG)
 
-    header_h = max(int(panel_height * 0.25), 1)
+    header_h = max(int(panel_height * 0.28), 1)
     header_bottom = top + header_h
     category_width = max(int(panel_width * 0.33), 1)
     category_box = (left, top, left + category_width, header_bottom)
-    draw.rounded_rectangle(category_box, radius=int(header_h * 0.2), fill=YELLOW_HEADER)
-    draw.rectangle((left + category_width, top, right, header_bottom), fill=BLUE_HEADER)
+    draw.rounded_rectangle(category_box, radius=int(header_h * 0.25), fill=YELLOW_LABEL)
 
     header_font_size = max(int(header_h * 0.45), 1)
     header_font = load_font(header_font_size)
 
-    cat_bbox = draw.textbbox((0, 0), category_text, font=header_font)
+    cat_bbox = draw.textbbox((0, 0), group_text, font=header_font)
     cat_w = cat_bbox[2] - cat_bbox[0]
     cat_h = cat_bbox[3] - cat_bbox[1]
     cat_x = left + (category_width - cat_w) / 2
     cat_y = top + (header_h - cat_h) / 2 - cat_bbox[1]
-    draw.text((cat_x, cat_y), category_text, font=header_font, fill=COLOR_DARK_GRAY_TEXT)
+    draw.text((cat_x, cat_y), group_text, font=header_font, fill=COLOR_DARK_GRAY_TEXT)
 
-    group_pad = max(int(panel_width * 0.02), 6)
-    group_x = left + category_width + group_pad
-    group_y = top + (header_h - cat_h) / 2 - cat_bbox[1]
-    draw.text((group_x, group_y), group_text, font=header_font, fill=WHITE)
+    group_pad = max(int(panel_width * 0.03), 6)
+    group_font_size = max(int(header_h * 0.38), 1)
+    group_font = load_font(group_font_size)
+    group_bbox = draw.textbbox((0, 0), category_text, font=group_font)
+    group_h = group_bbox[3] - group_bbox[1]
+    group_x = category_box[2] + group_pad
+    group_y = top + (header_h - group_h) / 2 - group_bbox[1]
+    draw.text((group_x, group_y), category_text, font=group_font, fill=WHITE)
 
-    arrow_h = max(int(panel_height * 0.12), 4)
-    arrow_top = header_bottom
+    padding_x = max(int(panel_width * 0.05), 8)
+    padding_y = max(int(panel_height * 0.05), 6)
+
+    line_y = header_bottom + max(int(panel_height * 0.01), 2)
+    draw.line(
+        (left + padding_x, line_y, right - padding_x, line_y),
+        fill=YELLOW_LABEL,
+        width=max(int(panel_height * 0.015), 2),
+    )
+
+    arrow_h = max(int(panel_height * 0.10), 4)
+    arrow_top = line_y + max(int(panel_height * 0.02), 2)
     arrow_bottom = min(arrow_top + arrow_h, bottom)
-    arrow_font_size = max(int(arrow_h * 0.6), 1)
+    arrow_font_size = max(int(arrow_h * 0.55), 1)
     arrow_font = load_font(arrow_font_size)
     arrow_unit_width = max(int(draw.textlength('≫ ', font=arrow_font)), 1)
     arrow_repeat = max(int(panel_width / arrow_unit_width) + 2, 2)
@@ -134,24 +138,28 @@ def draw_left_panel(
     arrow_y = arrow_top + (arrow_h - arrow_height) / 2 - arrow_bbox[1]
     draw.text((left + group_pad, arrow_y), arrow_text, font=arrow_font, fill=ARROW_COLOR)
 
-    padding_x = max(int(panel_width * 0.04), 8)
-    padding_y = max(int(panel_height * 0.04), 6)
-
     location_text_clean = location_text.strip() or '未知地点'
     location_font_size = max(int(panel_height * 0.14), 12)
     location_font = load_font(location_font_size)
     location_dot_size = max(int(location_font_size * 0.7), 8)
+    location_spacing = max(int(location_font_size * 0.2), 4)
 
-    location_y = bottom - padding_y - location_font_size
     location_x = left + padding_x + location_dot_size + 6
-
     location_max_width = max(panel_width - (location_x - left) - padding_x, 1)
     location_lines = wrap_text(draw, location_text_clean, location_font, location_max_width)
     if not location_lines:
         location_lines = [location_text_clean]
 
+    location_heights: List[int] = []
+    for line in location_lines:
+        bbox = draw.textbbox((0, 0), line, font=location_font)
+        location_heights.append(bbox[3] - bbox[1])
+    location_block_height = sum(location_heights)
+    if len(location_lines) > 1:
+        location_block_height += location_spacing * (len(location_lines) - 1)
+
     time_area_top = arrow_bottom + padding_y
-    time_area_bottom = location_y - padding_y
+    time_area_bottom = bottom - padding_y - location_block_height - max(int(panel_height * 0.05), 4)
     time_area_bottom = max(time_area_bottom, time_area_top + 1)
     time_area_height = time_area_bottom - time_area_top
 
@@ -178,21 +186,24 @@ def draw_left_panel(
     date_w = date_bbox[2] - date_bbox[0]
     date_h = date_bbox[3] - date_bbox[1]
     date_x = max(time_x + max(int(panel_width * 0.52), time_w + padding_x), time_x + time_w + padding_x)
+    date_x = min(date_x, right - padding_x - date_w)
     date_y = time_area_top + (time_area_height - date_h) / 2 - date_bbox[1]
     draw.text((date_x, date_y), date_text, font=date_font, fill=WHITE)
 
+    location_y = bottom - padding_y - location_block_height
+    dot_size = location_dot_size
     dot_x1 = left + padding_x
-    dot_y1 = location_y + (location_font_size - location_dot_size) / 2
-    dot_x2 = dot_x1 + location_dot_size
-    dot_y2 = dot_y1 + location_dot_size
+    dot_y1 = location_y + (location_heights[0] - dot_size) / 2
+    dot_x2 = dot_x1 + dot_size
+    dot_y2 = dot_y1 + dot_size
     draw.rectangle((dot_x1, dot_y1, dot_x2, dot_y2), fill=RED_DOT)
 
     loc_current_y = location_y
-    for line in location_lines:
+    for idx, line in enumerate(location_lines):
         bbox = draw.textbbox((0, 0), line, font=location_font)
         offset_y = -bbox[1]
         draw.text((location_x, loc_current_y + offset_y), line, font=location_font, fill=WHITE)
-        loc_current_y += (bbox[3] - bbox[1]) + max(int(location_font_size * 0.2), 4)
+        loc_current_y += (bbox[3] - bbox[1]) + (location_spacing if idx < len(location_lines) - 1 else 0)
 
 
 def wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_width: int) -> List[str]:
@@ -501,6 +512,7 @@ def compute_layout_sizes(
         'content_height': content_height,
         'overlay_height': content_height,
         'available_width': available_width,
+        'left_padding': left_padding,
     }
 
 
@@ -636,15 +648,21 @@ def generate_watermark(
         )
         location_font_size = layout['location_font_size']
 
-    overlay_height = max(layout['content_height'], 1)
-
     right_block = layout['right_block']
-    gap_between_panels = 16
+    padding_x = layout['left_padding']
+    overlay_height = layout['content_height']
 
-    padding_x = max(int(width * 0.05), 24)
+    right_block_width = right_block['width']
+    gap_between_panels = 32  # a slightly larger visual gap
+
     left_panel_left = padding_x
-    left_panel_right = right_block['right_edge'] - right_block['width'] - gap_between_panels
-    left_panel_right = max(left_panel_right, left_panel_left + int(width * 0.25))
+
+    # Target width ~ 40% of image, but never overlapping the right block
+    target_panel_width = int(width * 0.40)
+    max_panel_width = width - right_block_width - gap_between_panels - padding_x - right_padding
+    panel_width = max(int(width * 0.30), min(target_panel_width, max_panel_width))
+
+    left_panel_right = left_panel_left + panel_width
 
     left_panel_box = (
         left_panel_left,
