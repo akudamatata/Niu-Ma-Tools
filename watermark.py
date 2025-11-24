@@ -81,7 +81,7 @@ def draw_left_panel(
     panel_width = right - left
     panel_height = bottom - top
 
-    BLUE_BG = (20, 80, 200, 210)
+    BLUE_BG = (20, 80, 200, 190)
     YELLOW_LABEL = (253, 217, 46, 255)
     WHITE = (255, 255, 255, 255)
     RED_DOT = (220, 20, 40, 255)
@@ -99,22 +99,34 @@ def draw_left_panel(
     header_font_size = max(int(header_h * 0.45), 1)
     header_font = load_font(header_font_size)
 
-    cat_bbox = draw.textbbox((0, 0), category_text, font=header_font)
+    cat_bbox = draw.textbbox((0, 0), group_text, font=header_font)
     cat_w = cat_bbox[2] - cat_bbox[0]
     cat_h = cat_bbox[3] - cat_bbox[1]
     cat_x = left + (category_width - cat_w) / 2
     cat_y = top + (header_h - cat_h) / 2 - cat_bbox[1]
-    draw.text((cat_x, cat_y), category_text, font=header_font, fill=COLOR_DARK_GRAY_TEXT)
+    draw.text((cat_x, cat_y), group_text, font=header_font, fill=COLOR_DARK_GRAY_TEXT)
 
     group_pad = max(int(panel_width * 0.03), 6)
-    group_bbox = draw.textbbox((0, 0), group_text, font=header_font)
+    group_font_size = max(int(header_h * 0.38), 1)
+    group_font = load_font(group_font_size)
+    group_bbox = draw.textbbox((0, 0), category_text, font=group_font)
     group_h = group_bbox[3] - group_bbox[1]
     group_x = category_box[2] + group_pad
     group_y = top + (header_h - group_h) / 2 - group_bbox[1]
-    draw.text((group_x, group_y), group_text, font=header_font, fill=WHITE)
+    draw.text((group_x, group_y), category_text, font=group_font, fill=WHITE)
 
-    arrow_h = max(int(panel_height * 0.13), 4)
-    arrow_top = header_bottom
+    padding_x = max(int(panel_width * 0.05), 8)
+    padding_y = max(int(panel_height * 0.05), 6)
+
+    line_y = header_bottom + max(int(panel_height * 0.01), 2)
+    draw.line(
+        (left + padding_x, line_y, right - padding_x, line_y),
+        fill=YELLOW_LABEL,
+        width=max(int(panel_height * 0.015), 2),
+    )
+
+    arrow_h = max(int(panel_height * 0.10), 4)
+    arrow_top = line_y + max(int(panel_height * 0.02), 2)
     arrow_bottom = min(arrow_top + arrow_h, bottom)
     arrow_font_size = max(int(arrow_h * 0.55), 1)
     arrow_font = load_font(arrow_font_size)
@@ -125,9 +137,6 @@ def draw_left_panel(
     arrow_height = arrow_bbox[3] - arrow_bbox[1]
     arrow_y = arrow_top + (arrow_h - arrow_height) / 2 - arrow_bbox[1]
     draw.text((left + group_pad, arrow_y), arrow_text, font=arrow_font, fill=ARROW_COLOR)
-
-    padding_x = max(int(panel_width * 0.05), 8)
-    padding_y = max(int(panel_height * 0.05), 6)
 
     location_text_clean = location_text.strip() or '未知地点'
     location_font_size = max(int(panel_height * 0.14), 12)
@@ -644,15 +653,16 @@ def generate_watermark(
     overlay_height = layout['content_height']
 
     right_block_width = right_block['width']
-    gap_between_panels = 24  # px
+    gap_between_panels = 32  # a slightly larger visual gap
 
     left_panel_left = padding_x
-    left_panel_right = max(
-        left_panel_left + int(width * 0.35),
-        width - right_block_width - gap_between_panels - padding_x,
-    )
 
-    left_panel_right = min(left_panel_right, width - right_block_width - gap_between_panels)
+    # Target width ~ 40% of image, but never overlapping the right block
+    target_panel_width = int(width * 0.40)
+    max_panel_width = width - right_block_width - gap_between_panels - padding_x - right_padding
+    panel_width = max(int(width * 0.30), min(target_panel_width, max_panel_width))
+
+    left_panel_right = left_panel_left + panel_width
 
     left_panel_box = (
         left_panel_left,
