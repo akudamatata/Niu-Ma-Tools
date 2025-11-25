@@ -520,16 +520,25 @@ def generate_watermark(
 
     gap_between_panels = max(int(width * 0.02), 16)
 
-    target_panel_width = int(width * LEFT_PANEL_WIDTH_IDEAL_RATIO)
-    min_panel_width = int(width * LEFT_PANEL_WIDTH_MIN_RATIO)
-    max_panel_width = int(width * LEFT_PANEL_WIDTH_MAX_RATIO)
+    panel_width = clamp(
+        int(width * LEFT_PANEL_WIDTH_IDEAL_RATIO),
+        int(width * LEFT_PANEL_WIDTH_MIN_RATIO),
+        int(width * LEFT_PANEL_WIDTH_MAX_RATIO),
+    )
 
-    available_width = width - right_padding - right_block["width"] - gap_between_panels - padding_x
-    panel_width = clamp(target_panel_width, min_panel_width, max_panel_width)
-    panel_width = min(panel_width, available_width)
-    if panel_width < min_panel_width:
-        panel_width = max(min_panel_width, available_width)
-    panel_width = max(panel_width, int(width * 0.25))
+    available_width = (
+        width
+        - padding_x
+        - panel_width
+        - gap_between_panels
+        - right_block["width"]
+        - right_padding
+    )
+    if available_width < 0:
+        gap_between_panels = max(gap_between_panels + available_width, max(int(width * 0.01), 8))
+        available_width = width - padding_x - panel_width - gap_between_panels - right_block["width"] - right_padding
+        if available_width < 0:
+            gap_between_panels = max(int(width * 0.01), 8)
 
     panel_height = overlay_height - int(overlay_height * LEFT_PANEL_BOTTOM_INSET_RATIO)
 
