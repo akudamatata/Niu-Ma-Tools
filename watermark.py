@@ -11,6 +11,7 @@ from typing import Dict, Iterable, List
 from PIL import Image, ImageDraw, ImageFont
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets" / "watermark"
+SEPARATOR_PATH = ASSETS_DIR / "separator.png"
 FONT_PATH = Path(__file__).resolve().parent / "assets" / "fonts" / "汉仪旗黑X2-65W.ttf"
 FALLBACK_FONT_PATH = Path(__file__).resolve().parent / "assets" / "fonts" / "NotoSansSC-Regular.otf"
 
@@ -43,6 +44,7 @@ COLOR_PRIMARY = (255, 255, 255, 255)
 
 
 _failed_font_names: set[str] = set()
+_separator_image: Image.Image | None = None
 
 
 def clamp(value: int, min_value: int, max_value: int) -> int:
@@ -76,6 +78,23 @@ def load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         _failed_font_names.add("PIL-DEFAULT")
 
     return ImageFont.load_default()
+
+
+def load_separator() -> Image.Image | None:
+    global _separator_image
+
+    if _separator_image is not None:
+        return _separator_image
+
+    if not SEPARATOR_PATH.exists():
+        return None
+
+    try:
+        _separator_image = Image.open(SEPARATOR_PATH).convert("RGBA")
+    except OSError:
+        _separator_image = None
+
+    return _separator_image
 
 
 def wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_width: int) -> List[str]:
@@ -129,6 +148,7 @@ def fit_font_size(
 
 def draw_left_panel(
     draw: ImageDraw.ImageDraw,
+    overlay_image: Image.Image,
     box: tuple[int, int, int, int],
     time_text: str,
     date_text: str,
@@ -249,10 +269,36 @@ def draw_left_panel(
     time_y = arrow_bottom + padding_y + (time_area_height - time_h) / 2 - time_bbox[1]
     draw.text((time_x, time_y), time_text, font=time_font, fill=WHITE)
 
+    separator_img = load_separator()
+    separator_width = 0
+    separator_height = 0
+    separator_gap = max(int(panel_width * 0.025), max(int(padding_x * 0.6), 6))
+    separator_x = time_x + time_w + separator_gap
+    separator_y = arrow_bottom + padding_y
+    if separator_img is not None:
+        desired_height = clamp(
+            int(max(time_h, int(time_area_height * 0.58)) * 1.05),
+            max(int(time_area_height * 0.45), 8),
+            max(int(time_area_height * 0.9), 12),
+        )
+        aspect_ratio = separator_img.width / separator_img.height
+        separator_width = max(int(desired_height * aspect_ratio), 2)
+        separator_height = desired_height
+        separator_y = arrow_bottom + padding_y + (time_area_height - separator_height) / 2
+        separator_resized = separator_img.resize((separator_width, separator_height), Image.LANCZOS)
+        overlay_image.paste(
+            separator_resized,
+            (int(separator_x), int(separator_y)),
+            separator_resized,
+        )
+
     date_bbox = draw.textbbox((0, 0), date_text, font=date_font)
     date_w = date_bbox[2] - date_bbox[0]
     date_h = date_bbox[3] - date_bbox[1]
-    date_x = min(right - padding_x - date_w, time_x + max(time_w + padding_x, int(panel_width * 0.45)))
+    date_anchor = time_x + max(time_w + padding_x, int(panel_width * 0.45))
+    if separator_width:
+        date_anchor = max(date_anchor, separator_x + separator_width + separator_gap)
+    date_x = min(right - padding_x - date_w, date_anchor)
     date_y = arrow_bottom + padding_y + (time_area_height - date_h) / 2 - date_bbox[1]
     draw.text((date_x, date_y), date_text, font=date_font, fill=WHITE)
 
@@ -499,6 +545,7 @@ def generate_watermark(
 
     draw_left_panel(
         draw=draw,
+        overlay_image=overlay,
         box=left_panel_box,
         time_text=time_text,
         date_text=date_line,
