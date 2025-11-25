@@ -156,6 +156,7 @@ def draw_left_panel(
     *,
     category_text: str = "执勤巡逻",
     group_text: str = "松州大队",
+    is_portrait: bool = False,
 ) -> None:
     left, top, right, bottom = box
     panel_width = right - left
@@ -175,7 +176,10 @@ def draw_left_panel(
     inner_left = left + padding_x
     inner_right = right - padding_x
 
-    header_h = max(int(panel_height * 0.26), 1)
+    if is_portrait:
+        header_h = max(int(panel_height * 0.24), 1)
+    else:
+        header_h = max(int(panel_height * 0.26), 1)
     header_bottom = top + header_h
 
     category_width = max(int(panel_width * 0.38), 1)
@@ -268,14 +272,6 @@ def draw_left_panel(
     time_x = left + padding_x
     time_y = arrow_bottom + padding_y + (time_area_height - time_h) / 2 - time_bbox[1]
 
-    date_x_override = None
-    date_y_override = None
-    time_ratio = time_w / max(panel_width, 1)
-    if time_ratio > 0.55:
-        # If the time text is too wide (common on portrait images),
-        # place the date below the time instead of on the same line.
-        date_x_override = time_x
-        date_y_override = time_y + time_h + max(int(time_area_height * 0.10), 4)
     draw.text((time_x, time_y), time_text, font=time_font, fill=WHITE)
 
     separator_img = load_separator()
@@ -304,15 +300,18 @@ def draw_left_panel(
     date_bbox = draw.textbbox((0, 0), date_text, font=date_font)
     date_w = date_bbox[2] - date_bbox[0]
     date_h = date_bbox[3] - date_bbox[1]
-    date_anchor = time_x + max(time_w + padding_x, int(panel_width * 0.45))
-    if separator_width:
-        date_anchor = max(date_anchor, separator_x + separator_width + separator_gap)
-    date_x = min(right - padding_x - date_w, date_anchor)
-    date_y = arrow_bottom + padding_y + (time_area_height - date_h) / 2 - date_bbox[1]
-    if date_x_override is not None:
-        date_x = date_x_override
-    if date_y_override is not None:
-        date_y = date_y_override
+
+    if is_portrait:
+        # Portrait: force one-line layout, time left, date right.
+        line_center_y = time_y + (time_h - date_h) / 2
+        date_x = right - padding_x - date_w
+        date_y = line_center_y - date_bbox[1]
+    else:
+        date_anchor = time_x + max(time_w + padding_x, int(panel_width * 0.45))
+        if separator_width:
+            date_anchor = max(date_anchor, separator_x + separator_width + separator_gap)
+        date_x = min(right - padding_x - date_w, date_anchor)
+        date_y = arrow_bottom + padding_y + (time_area_height - date_h) / 2 - date_bbox[1]
     draw.text((date_x, date_y), date_text, font=date_font, fill=WHITE)
 
     location_top = arrow_bottom + padding_y + time_area_height + location_block_margin
@@ -457,6 +456,7 @@ def compute_layout_sizes(
     height: int,
     *,
     security_code: str,
+    is_portrait: bool = False,
 ) -> Dict[str, object]:
     overlay_height = clamp(
         int(height * OVERLAY_HEIGHT_TARGET_RATIO),
@@ -468,6 +468,20 @@ def compute_layout_sizes(
         int(height * BOTTOM_MARGIN_MIN_RATIO),
         int(height * BOTTOM_MARGIN_MAX_RATIO),
     )
+
+    if is_portrait:
+        # For portrait images, make the blue panel a flatter strip.
+        # Slightly smaller overlay height and a bit more bottom margin.
+        overlay_height = clamp(
+            int(height * 0.15),
+            int(height * 0.13),
+            int(height * 0.18),
+        )
+        bottom_padding = clamp(
+            int(height * 0.03),
+            int(height * 0.025),
+            int(height * 0.04),
+        )
 
     scratch = Image.new("RGBA", (width, overlay_height or 1), (0, 0, 0, 0))
     draw_measure = ImageDraw.Draw(scratch)
@@ -525,7 +539,12 @@ def generate_watermark(
 
     security_code = generate_security_code()
 
-    layout = compute_layout_sizes(width, height, security_code=security_code)
+    layout = compute_layout_sizes(
+        width,
+        height,
+        security_code=security_code,
+        is_portrait=is_portrait,
+    )
 
     right_block = layout["right_block"]
     padding_x = layout["left_padding"]
@@ -536,12 +555,10 @@ def generate_watermark(
 
     # Use different width ratios for portrait vs. landscape
     if is_portrait:
-        # For portrait images, make the left blue panel much wider,
-        # so it visually looks like a horizontal strip near the bottom.
+        # Portrait: wide but not full width, like an 80% horizontal strip.
         portrait_ideal_ratio = 0.80
         portrait_min_ratio = 0.75
-        portrait_max_ratio = 0.90
-
+        portrait_max_ratio = 0.85
         target_panel_width = int(width * portrait_ideal_ratio)
         min_panel_width = int(width * portrait_min_ratio)
         max_panel_width = int(width * portrait_max_ratio)
@@ -558,13 +575,19 @@ def generate_watermark(
         panel_width = max(min_panel_width, available_width)
     panel_width = max(panel_width, int(width * 0.25))
 
-    panel_height = overlay_height - int(overlay_height * LEFT_PANEL_BOTTOM_INSET_RATIO)
+    if is_portrait:
+        # Flatter bar for vertical images.
+        panel_height = int(overlay_height * 0.75)
+        top_offset = int(overlay_height * 0.10)
+    else:
+        panel_height = overlay_height - int(overlay_height * LEFT_PANEL_BOTTOM_INSET_RATIO)
+        top_offset = 0
 
     left_panel_box = (
         padding_x,
-        0,
+        top_offset,
         padding_x + panel_width,
-        panel_height,
+        top_offset + panel_height,
     )
 
     overlay = Image.new("RGBA", (width, overlay_height), (0, 0, 0, 0))
@@ -579,6 +602,7 @@ def generate_watermark(
         location_text=location,
         category_text=weekday_line,
         group_text="松州大队",
+        is_portrait=is_portrait,
     )
 
     current_y = right_block["top"]
