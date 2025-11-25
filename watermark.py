@@ -164,13 +164,13 @@ def draw_left_panel(
     panel_width = right - left
     panel_height = bottom - top
 
-    BLUE_BG = (20, 80, 200, 190)
-    YELLOW_LABEL = (253, 217, 46, 255)
+    BLUE_BG = (20, 80, 200, 235)        # deeper & more opaque blue panel
+    YELLOW_LABEL = (253, 217, 46, 255)  # keep as-is
     WHITE = (255, 255, 255, 255)
     RED_DOT = (220, 20, 40, 255)
-    ARROW_COLOR = (255, 255, 255, 200)
+    ARROW_COLOR = (253, 217, 46, 235)   # yellow arrows like the reference
 
-    radius = max(int(min(panel_width, panel_height) * 0.08), 4)
+    radius = max(int(min(panel_width, panel_height) * 0.06), 6)
     draw.rounded_rectangle(box, radius=radius, fill=BLUE_BG)
 
     padding_x = max(int(panel_width * 0.06), 10)
@@ -219,15 +219,15 @@ def draw_left_panel(
     group_y = top + (header_h - group_h) / 2 - group_bbox[1]
     draw.text((group_x, group_y), category_text, font=group_font, fill=WHITE)
 
-    line_y = header_bottom + max(int(panel_height * 0.01), 2)
+    line_y = header_bottom + max(int(panel_height * 0.008), 2)
     draw.line(
         (left + padding_x, line_y, right - padding_x, line_y),
         fill=YELLOW_LABEL,
-        width=max(int(panel_height * 0.015), 2),
+        width=max(int(panel_height * 0.012), 2),
     )
 
-    arrow_h = max(int(panel_height * 0.10), 4)
-    arrow_top = line_y + max(int(panel_height * 0.02), 2)
+    arrow_h = max(int(panel_height * 0.085), 4)
+    arrow_top = line_y + max(int(panel_height * 0.018), 2)
     arrow_bottom = min(arrow_top + arrow_h, bottom)
     arrow_font = fit_font_size(
         draw,
@@ -342,9 +342,9 @@ def draw_left_panel(
     if len(location_lines) > 1:
         total_loc_height += location_spacing * (len(location_lines) - 1)
 
-    dot_size = max(int(location_font.size * 0.7), 8)
+    dot_size = max(int(location_font.size * 0.65), 8)
     start_y = location_top + max((location_area_height - total_loc_height) / 2, 0)
-    dot_x1 = left + padding_x
+    dot_x1 = left + max(padding_x, int(panel_width * 0.04))
     dot_y1 = start_y + (loc_metrics[0][3] - loc_metrics[0][1] - dot_size) / 2
     dot_x2 = dot_x1 + dot_size
     dot_y2 = dot_y1 + dot_size
