@@ -267,6 +267,15 @@ def draw_left_panel(
     time_h = time_bbox[3] - time_bbox[1]
     time_x = left + padding_x
     time_y = arrow_bottom + padding_y + (time_area_height - time_h) / 2 - time_bbox[1]
+
+    date_x_override = None
+    date_y_override = None
+    time_ratio = time_w / max(panel_width, 1)
+    if time_ratio > 0.55:
+        # If the time text is too wide (common on portrait images),
+        # place the date below the time instead of on the same line.
+        date_x_override = time_x
+        date_y_override = time_y + time_h + max(int(time_area_height * 0.10), 4)
     draw.text((time_x, time_y), time_text, font=time_font, fill=WHITE)
 
     separator_img = load_separator()
@@ -300,6 +309,10 @@ def draw_left_panel(
         date_anchor = max(date_anchor, separator_x + separator_width + separator_gap)
     date_x = min(right - padding_x - date_w, date_anchor)
     date_y = arrow_bottom + padding_y + (time_area_height - date_h) / 2 - date_bbox[1]
+    if date_x_override is not None:
+        date_x = date_x_override
+    if date_y_override is not None:
+        date_y = date_y_override
     draw.text((date_x, date_y), date_text, font=date_font, fill=WHITE)
 
     location_top = arrow_bottom + padding_y + time_area_height + location_block_margin
@@ -496,6 +509,7 @@ def generate_watermark(
     info = get_current_info()
     base_image = Image.open(image_path).convert("RGB")
     width, height = base_image.size
+    is_portrait = height > width
 
     time_text = time_text.strip() or info["time"]
     date_line = date_text.strip() or info["date"]
@@ -520,25 +534,29 @@ def generate_watermark(
 
     gap_between_panels = max(int(width * 0.02), 16)
 
-    panel_width = clamp(
-        int(width * LEFT_PANEL_WIDTH_IDEAL_RATIO),
-        int(width * LEFT_PANEL_WIDTH_MIN_RATIO),
-        int(width * LEFT_PANEL_WIDTH_MAX_RATIO),
-    )
+    # Use different width ratios for portrait vs. landscape
+    if is_portrait:
+        # For portrait images, make the left blue panel much wider,
+        # so it visually looks like a horizontal strip near the bottom.
+        portrait_ideal_ratio = 0.80
+        portrait_min_ratio = 0.75
+        portrait_max_ratio = 0.90
 
-    available_width = (
-        width
-        - padding_x
-        - panel_width
-        - gap_between_panels
-        - right_block["width"]
-        - right_padding
-    )
-    if available_width < 0:
-        gap_between_panels = max(gap_between_panels + available_width, max(int(width * 0.01), 8))
-        available_width = width - padding_x - panel_width - gap_between_panels - right_block["width"] - right_padding
-        if available_width < 0:
-            gap_between_panels = max(int(width * 0.01), 8)
+        target_panel_width = int(width * portrait_ideal_ratio)
+        min_panel_width = int(width * portrait_min_ratio)
+        max_panel_width = int(width * portrait_max_ratio)
+    else:
+        # Keep the original landscape behavior
+        target_panel_width = int(width * LEFT_PANEL_WIDTH_IDEAL_RATIO)
+        min_panel_width = int(width * LEFT_PANEL_WIDTH_MIN_RATIO)
+        max_panel_width = int(width * LEFT_PANEL_WIDTH_MAX_RATIO)
+
+    available_width = width - right_padding - right_block["width"] - gap_between_panels - padding_x
+    panel_width = clamp(target_panel_width, min_panel_width, max_panel_width)
+    panel_width = min(panel_width, available_width)
+    if panel_width < min_panel_width:
+        panel_width = max(min_panel_width, available_width)
+    panel_width = max(panel_width, int(width * 0.25))
 
     panel_height = overlay_height - int(overlay_height * LEFT_PANEL_BOTTOM_INSET_RATIO)
 
