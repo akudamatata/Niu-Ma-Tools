@@ -223,15 +223,15 @@ def draw_left_panel(
         width=max(int(panel_height * 0.010), 2),
     )
 
-    arrow_h = max(int(panel_height * 0.065), 4)
-    arrow_top = line_y + max(int(panel_height * 0.015), 1)
+    arrow_h = max(int(panel_height * 0.075), 6)
+    arrow_top = line_y + max(int(panel_height * 0.020), 4)
     arrow_bottom = min(arrow_top + arrow_h, bottom)
     arrow_font = fit_font_size(
         draw,
         "≫ ≫ ≫",
         panel_width - padding_x * 2,
         arrow_h,
-        initial_size=max(int(arrow_h * 0.6), 10),
+        initial_size=max(int(arrow_h * 0.55), 10),
         min_size=8,
     )
     arrow_unit_width = max(int(draw.textlength("≫ ", font=arrow_font)), 1)
@@ -251,17 +251,17 @@ def draw_left_panel(
     time_font = fit_font_size(
         draw,
         time_text,
-        max(int(panel_width * 0.5), 1),
+        max(int(panel_width * 0.48), 1),
         time_area_height,
-        initial_size=max(int(time_area_height * 0.8), 12),
-        min_size=12,
+        initial_size=max(int(time_area_height * 0.90), 14),
+        min_size=13,
     )
     date_font = fit_font_size(
         draw,
         date_text,
         panel_width - padding_x * 2,
         time_area_height,
-        initial_size=max(int(time_area_height * 0.45), 10),
+        initial_size=max(int(time_area_height * 0.40), 11),
         min_size=10,
     )
 
@@ -301,9 +301,17 @@ def draw_left_panel(
     date_h = date_bbox[3] - date_bbox[1]
 
     if is_portrait:
-        # Portrait: force one-line layout, time left, date right.
+        # Portrait: time on the left, a small separator, then date
+        # starting just after the separator, not flush-right.
         line_center_y = time_y + (time_h - date_h) / 2
-        date_x = right - padding_x - date_w
+
+        # Anchor date at the separator if present, otherwise fall back
+        # to a fixed offset from the time text.
+        if separator_width:
+            date_x = separator_x + separator_width + separator_gap
+        else:
+            date_x = time_x + time_w + max(separator_gap, int(panel_width * 0.04))
+
         date_y = line_center_y - date_bbox[1]
     else:
         date_x = right - padding_x - date_w
@@ -490,6 +498,12 @@ def compute_layout_sizes(
 
     bottom_padding = max(int(height * 0.018), 16)
 
+    if is_portrait:
+        # For tall images, give the watermark bar a bit more height
+        # and bottom margin so it looks like the landscape reference.
+        overlay_height = int(overlay_height * 1.10)
+        bottom_padding = max(bottom_padding, int(height * 0.03), 28)
+
     scratch = Image.new("RGBA", (width, overlay_height or 1), (0, 0, 0, 0))
     draw_measure = ImageDraw.Draw(scratch)
 
@@ -562,10 +576,10 @@ def generate_watermark(
 
     # Use different width ratios for portrait vs. landscape
     if is_portrait:
-        # Portrait: about half-width card, not an 80% almost-full-width strip.
-        portrait_ideal_ratio = 0.55
-        portrait_min_ratio = 0.50
-        portrait_max_ratio = 0.60
+        # Portrait: slightly narrower card, closer to half width
+        portrait_ideal_ratio = 0.50
+        portrait_min_ratio = 0.46
+        portrait_max_ratio = 0.54
         target_panel_width = int(width * portrait_ideal_ratio)
         min_panel_width = int(width * portrait_min_ratio)
         max_panel_width = int(width * portrait_max_ratio)
@@ -583,10 +597,12 @@ def generate_watermark(
     panel_width = max(panel_width, int(width * 0.25))
 
     if is_portrait:
-        panel_height = int(overlay_height * 0.78)
+        # Make the card visibly taller on portrait, not a thin strip.
+        panel_height = int(overlay_height * 0.88)
+        top_offset = max(int(overlay_height * 0.06), 8)
     else:
         panel_height = int(overlay_height * 0.82)
-    top_offset = max(int(overlay_height * 0.08), 10)
+        top_offset = max(int(overlay_height * 0.08), 10)
 
     left_panel_box = (
         padding_x,
