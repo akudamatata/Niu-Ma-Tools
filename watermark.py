@@ -164,13 +164,13 @@ def draw_left_panel(
     panel_width = right - left
     panel_height = bottom - top
 
-    BLUE_BG = (20, 80, 200, 235)        # deeper & more opaque blue panel
+    BLUE_BG = (20, 80, 200, 255)
     YELLOW_LABEL = (253, 217, 46, 255)  # keep as-is
     WHITE = (255, 255, 255, 255)
     RED_DOT = (220, 20, 40, 255)
-    ARROW_COLOR = (253, 217, 46, 235)   # yellow arrows like the reference
+    ARROW_COLOR = (253, 217, 46, 255)
 
-    radius = max(int(min(panel_width, panel_height) * 0.06), 6)
+    radius = max(int(min(panel_width, panel_height) * 0.045), 5)
     draw.rounded_rectangle(box, radius=radius, fill=BLUE_BG)
 
     padding_x = max(int(panel_width * 0.06), 10)
@@ -178,15 +178,12 @@ def draw_left_panel(
     inner_left = left + padding_x
     inner_right = right - padding_x
 
-    if is_portrait:
-        header_h = max(int(panel_height * 0.24), 1)
-    else:
-        header_h = max(int(panel_height * 0.26), 1)
+    header_h = int(panel_height * 0.285)
     header_bottom = top + header_h
 
     category_width = max(int(panel_width * 0.38), 1)
     category_box = (left + padding_x, top + padding_y, left + padding_x + category_width, header_bottom)
-    draw.rounded_rectangle(category_box, radius=max(int(header_h * 0.25), 2), fill=YELLOW_LABEL)
+    draw.rectangle(category_box, fill=YELLOW_LABEL)
 
     header_font = fit_font_size(
         draw,
@@ -223,11 +220,11 @@ def draw_left_panel(
     draw.line(
         (left + padding_x, line_y, right - padding_x, line_y),
         fill=YELLOW_LABEL,
-        width=max(int(panel_height * 0.012), 2),
+        width=max(int(panel_height * 0.010), 2),
     )
 
-    arrow_h = max(int(panel_height * 0.085), 4)
-    arrow_top = line_y + max(int(panel_height * 0.018), 2)
+    arrow_h = max(int(panel_height * 0.065), 4)
+    arrow_top = line_y + max(int(panel_height * 0.015), 1)
     arrow_bottom = min(arrow_top + arrow_h, bottom)
     arrow_font = fit_font_size(
         draw,
@@ -279,7 +276,7 @@ def draw_left_panel(
     separator_img = load_separator()
     separator_width = 0
     separator_height = 0
-    separator_gap = max(int(panel_width * 0.025), max(int(padding_x * 0.6), 6))
+    separator_gap = max(int(panel_width * 0.02), 10)
     separator_x = time_x + time_w + separator_gap
     separator_y = arrow_bottom + padding_y
     if separator_img is not None:
@@ -309,10 +306,7 @@ def draw_left_panel(
         date_x = right - padding_x - date_w
         date_y = line_center_y - date_bbox[1]
     else:
-        date_anchor = time_x + max(time_w + padding_x, int(panel_width * 0.45))
-        if separator_width:
-            date_anchor = max(date_anchor, separator_x + separator_width + separator_gap)
-        date_x = min(right - padding_x - date_w, date_anchor)
+        date_x = right - padding_x - date_w
         date_y = arrow_bottom + padding_y + (time_area_height - date_h) / 2 - date_bbox[1]
     draw.text((date_x, date_y), date_text, font=date_font, fill=WHITE)
 
@@ -342,9 +336,9 @@ def draw_left_panel(
     if len(location_lines) > 1:
         total_loc_height += location_spacing * (len(location_lines) - 1)
 
-    dot_size = max(int(location_font.size * 0.65), 8)
+    dot_size = max(int(location_font.size * 0.60), 7)
     start_y = location_top + max((location_area_height - total_loc_height) / 2, 0)
-    dot_x1 = left + max(padding_x, int(panel_width * 0.04))
+    dot_x1 = left + padding_x + max(int(panel_width * 0.01), 4)
     dot_y1 = start_y + (loc_metrics[0][3] - loc_metrics[0][1] - dot_size) / 2
     dot_x2 = dot_x1 + dot_size
     dot_y2 = dot_y1 + dot_size
@@ -372,19 +366,19 @@ def compute_right_block_layout(
     security_code: str,
 ) -> Dict[str, object]:
     target_height = clamp(
-        int(image_height * RIGHT_BLOCK_HEIGHT_TARGET_RATIO),
-        int(image_height * RIGHT_BLOCK_HEIGHT_MIN_RATIO),
-        int(image_height * RIGHT_BLOCK_HEIGHT_MAX_RATIO),
+        int(overlay_height * 0.15),
+        int(overlay_height * 0.12),
+        int(overlay_height * 0.17),
     )
-    max_height = min(target_height, overlay_height)
-    min_height = max(min(int(image_height * RIGHT_BLOCK_HEIGHT_MIN_RATIO), overlay_height), 1)
+    max_height = min(int(overlay_height * 0.17), overlay_height)
+    min_height = max(min(int(overlay_height * 0.12), overlay_height), 1)
     min_width = max(int(width * RIGHT_BLOCK_WIDTH_MIN_RATIO), 1)
     max_width = max(int(width * RIGHT_BLOCK_WIDTH_MAX_RATIO), min_width + 1)
     line_spacing = max(int(target_height * RIGHT_BLOCK_LINE_SPACING_RATIO), 2)
 
-    base_title_ratio = 0.42
-    base_second_ratio = 0.32
-    base_third_ratio = 0.26
+    base_title_ratio = 0.50
+    base_second_ratio = 0.38
+    base_third_ratio = 0.32
 
     def measure(scale: float) -> Dict[str, object]:
         title_font = load_font(max(int(target_height * base_title_ratio * scale), 1))
@@ -494,13 +488,7 @@ def compute_layout_sizes(
         OVERLAY_HEIGHT_MAX_PX,
     )
 
-    # Bottom padding stays proportional, but also gets a gentle pixel clamp.
-    bottom_padding = clamp(
-        int(height * BOTTOM_MARGIN_DEFAULT_RATIO),
-        int(height * BOTTOM_MARGIN_MIN_RATIO),
-        int(height * BOTTOM_MARGIN_MAX_RATIO),
-    )
-    bottom_padding = clamp(bottom_padding, 8, max(int(height * 0.05), 16))
+    bottom_padding = max(int(height * 0.018), 16)
 
     scratch = Image.new("RGBA", (width, overlay_height or 1), (0, 0, 0, 0))
     draw_measure = ImageDraw.Draw(scratch)
@@ -595,12 +583,10 @@ def generate_watermark(
     panel_width = max(panel_width, int(width * 0.25))
 
     if is_portrait:
-        # Flatter bar for vertical images.
-        panel_height = int(overlay_height * 0.75)
-        top_offset = int(overlay_height * 0.10)
+        panel_height = int(overlay_height * 0.78)
     else:
-        panel_height = overlay_height - int(overlay_height * LEFT_PANEL_BOTTOM_INSET_RATIO)
-        top_offset = 0
+        panel_height = int(overlay_height * 0.82)
+    top_offset = max(int(overlay_height * 0.08), 10)
 
     left_panel_box = (
         padding_x,
