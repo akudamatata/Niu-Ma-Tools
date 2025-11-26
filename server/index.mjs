@@ -546,6 +546,8 @@ app.post('/api/watermark', upload.single('image'), async (req, res) => {
   const customDate = String(req.body?.date ?? '').trim()
   const customTime = String(req.body?.time ?? '').trim()
   const customWeekday = String(req.body?.weekday ?? '').trim()
+  const headerLeft = String(req.body?.headerLeft ?? '').trim()
+  const headerRight = String(req.body?.headerRight ?? '').trim()
 
   const outputPath = join(tempFile.workingDir, 'output.png')
   const pythonExecutable = process.env.PYTHON_EXECUTABLE || 'python3'
@@ -575,6 +577,14 @@ app.post('/api/watermark', upload.single('image'), async (req, res) => {
 
   if (customWeekday) {
     args.push('--weekday', customWeekday)
+  }
+
+  if (headerLeft) {
+    args.push('--header-left', headerLeft)
+  }
+
+  if (headerRight) {
+    args.push('--header-right', headerRight)
   }
 
   try {

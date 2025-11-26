@@ -7,6 +7,8 @@ export function WatermarkForm() {
   const [location, setLocation] = useState('')
   const [temperature, setTemperature] = useState('26℃')
   const [weather, setWeather] = useState('多云')
+  const [headerLeft, setHeaderLeft] = useState('城管执法')
+  const [headerRight, setHeaderRight] = useState('工作记录')
   const datetimeDefaults = useMemo(() => {
     const now = new Date()
     const pad = (value: number) => value.toString().padStart(2, '0')
@@ -52,7 +54,9 @@ export function WatermarkForm() {
       weather: weather.trim(),
       date: dateText.trim(),
       time: timeText.trim(),
-      weekday: weekdayText.trim()
+      weekday: weekdayText.trim(),
+      headerLeft: headerLeft.trim(),
+      headerRight: headerRight.trim()
     })
   }
 
@@ -132,6 +136,29 @@ export function WatermarkForm() {
         </label>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="space-y-2 text-sm text-white/80">
+          <span>左侧标签（黄色区域）</span>
+          <input
+            type="text"
+            value={headerLeft}
+            onChange={(event) => setHeaderLeft(event.target.value)}
+            placeholder="如：城管执法"
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-sky-300 focus:outline-none"
+          />
+        </label>
+        <label className="space-y-2 text-sm text-white/80">
+          <span>右侧标题（白色文字）</span>
+          <input
+            type="text"
+            value={headerRight}
+            onChange={(event) => setHeaderRight(event.target.value)}
+            placeholder="如：工作记录"
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-sky-300 focus:outline-none"
+          />
+        </label>
+      </div>
+
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
         <div>
           <h3 className="text-sm font-semibold text-white/80">时间信息</h3>
@@ -193,6 +220,8 @@ export function WatermarkForm() {
               fileInputRef.current.value = ''
             }
             restoreDatetimeDefaults()
+            setHeaderLeft('城管执法')
+            setHeaderRight('工作记录')
           }}
           className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/10"
         >
