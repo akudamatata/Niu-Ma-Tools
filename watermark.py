@@ -537,6 +537,8 @@ def generate_watermark(
     date_text: str = "",
     time_text: str = "",
     weekday_text: str = "",
+    header_left_text: str = "城管执法",
+    header_right_text: str = "工作记录",
 ) -> None:
     if not Path(image_path).exists():
         raise FileNotFoundError(f"输入图片不存在：{image_path}")
@@ -548,6 +550,8 @@ def generate_watermark(
 
     time_text = time_text.strip() or info["time"]
     date_line = date_text.strip() or info["date"]
+    header_left = header_left_text.strip() or "城管执法"
+    header_right = header_right_text.strip() or "工作记录"
     temperature = temperature.strip()
     weather = weather.strip()
     weekday_label = weekday_text.strip() or f"星期{info['weekday']}"
@@ -621,8 +625,8 @@ def generate_watermark(
         time_text=time_text,
         date_text=date_line,
         location_text=location,
-        category_text=weekday_line,
-        group_text="松州大队",
+        category_text=header_right or "工作记录",
+        group_text=header_left or "城管执法",
         is_portrait=is_portrait,
     )
 
@@ -745,6 +749,16 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument("--date", default="", help="Custom date text to display.")
     parser.add_argument("--time", default="", help="Custom time text to display.")
     parser.add_argument("--weekday", default="", help="Custom weekday text to display.")
+    parser.add_argument(
+        "--header-left",
+        default="",
+        help="左侧黄色标签标题，如：城管执法",
+    )
+    parser.add_argument(
+        "--header-right",
+        default="",
+        help="右侧白色标题文字，如：工作记录",
+    )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
@@ -758,6 +772,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             date_text=args.date,
             time_text=args.time,
             weekday_text=args.weekday,
+            header_left_text=args.header_left,
+            header_right_text=args.header_right,
         )
     except Exception as exc:  # pragma: no cover - runtime safeguard
         sys.stderr.write(f"水印生成失败：{exc}\n")

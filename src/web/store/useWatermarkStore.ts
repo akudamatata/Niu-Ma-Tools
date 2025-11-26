@@ -26,6 +26,8 @@ interface WatermarkState {
       date: string
       time: string
       weekday: string
+      headerLeft: string
+      headerRight: string
     }
   ) => Promise<void>
   reset: () => void
@@ -68,6 +70,8 @@ export const useWatermarkStore = create<WatermarkState>((set) => ({
     formData.append('date', payload.date)
     formData.append('time', payload.time)
     formData.append('weekday', payload.weekday)
+    formData.append('headerLeft', payload.headerLeft)
+    formData.append('headerRight', payload.headerRight)
 
     let response: Response
 
