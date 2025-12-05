@@ -161,16 +161,16 @@ def generate_watermark(
 
     W = width
     H = height
-    margin = round(0.022 * W)
+    margin = round(0.024 * W)
 
-    card_w = round(0.60 * W)
-    card_h = round(0.20 * W)
+    card_w = round(0.58 * W)
+    card_h = round(0.26 * W)
     card_w = min(card_w, W - margin * 2)
-    card_h = min(card_h, H - margin * 3)
+    card_h = min(card_h, H - margin * 2.6)
 
-    corner_radius = round(0.09 * card_h)
-    padding_x = round(0.12 * card_h)
-    padding_y = round(0.16 * card_h)
+    corner_radius = round(0.085 * card_h)
+    padding_x = round(0.11 * card_h)
+    padding_y = round(0.13 * card_h)
 
     card_left = margin
     card_bottom = margin * 2
@@ -188,9 +188,9 @@ def generate_watermark(
     )
 
     # Vertical ribbon with notch
-    ribbon_w = round(0.17 * card_h)
-    notch_depth = round(0.22 * ribbon_w)
-    notch_height = round(0.36 * card_h)
+    ribbon_w = round(0.18 * card_h)
+    notch_depth = round(0.24 * ribbon_w)
+    notch_height = round(0.38 * card_h)
     notch_top = card_top + (card_h - notch_height) / 2
     ribbon_points = [
         (card_left, card_top),
@@ -219,7 +219,7 @@ def generate_watermark(
     text_y = card_top + padding_y
 
     # Top row
-    title_font = load_font(round(0.18 * card_h))
+    title_font = load_font(round(0.17 * card_h))
     divider_font = load_font(round(0.15 * card_h))
     title = header_right_text.strip() or "工作记录"
     title_bbox = text_size(draw, title, title_font)
@@ -243,10 +243,10 @@ def generate_watermark(
     time_value = time_text.strip() or info["time"]
     date_value = date_text.strip() or info["date"]
 
-    time_font = load_font(round(0.46 * card_h))
-    date_font = load_font(round(0.20 * card_h))
+    time_font = load_font(round(0.48 * card_h))
+    date_font = load_font(round(0.19 * card_h))
 
-    time_top = text_y + title_h + ceil(padding_y * 0.4)
+    time_top = text_y + title_h + ceil(padding_y * 0.55)
     time_bbox = text_size(draw, time_value, time_font)
     time_h = time_bbox[3] - time_bbox[1]
     time_y = time_top - time_bbox[1]
@@ -254,49 +254,81 @@ def generate_watermark(
 
     date_bbox = text_size(draw, date_value, date_font)
     date_h = date_bbox[3] - date_bbox[1]
-    date_y = time_top + time_h - date_h - date_bbox[1]
+    date_y = time_top + time_h - date_h - date_bbox[1] + ceil(padding_y * 0.18)
     draw.text((inner_left - date_bbox[0], date_y), date_value, font=date_font, fill=WHITE_SECONDARY)
 
-    # Location row (outside card)
-    loc_margin_top = round(0.5 * padding_y)
-    location_y = card_top + card_h + loc_margin_top
-    marker_size = round(0.07 * card_h)
-    marker_x = card_left
-    draw.rectangle(
+    # Location row (inside card)
+    loc_section_height = round(0.34 * card_h)
+    location_block_top = card_top + card_h - loc_section_height
+
+    marker_size = round(0.12 * card_h)
+    marker_x = inner_left
+    marker_y = location_block_top + (loc_section_height - marker_size) / 2
+    draw.rounded_rectangle(
         (
             marker_x,
-            location_y,
+            marker_y,
             marker_x + marker_size,
-            location_y + marker_size,
+            marker_y + marker_size,
         ),
+        radius=marker_size * 0.18,
         fill=RED,
     )
+    pin_color = color_with_alpha("FFFFFF", 0.9)
+    pin_center_x = marker_x + marker_size / 2
+    pin_center_y = marker_y + marker_size * 0.38
+    pin_radius = marker_size * 0.16
+    draw.ellipse(
+        (
+            pin_center_x - pin_radius,
+            pin_center_y - pin_radius,
+            pin_center_x + pin_radius,
+            pin_center_y + pin_radius,
+        ),
+        fill=pin_color,
+    )
+    draw.polygon(
+        [
+            (pin_center_x, marker_y + marker_size * 0.72),
+            (pin_center_x - pin_radius * 1.05, pin_center_y + pin_radius * 0.6),
+            (pin_center_x + pin_radius * 1.05, pin_center_y + pin_radius * 0.6),
+        ],
+        fill=pin_color,
+    )
 
-    loc_font = load_font(round(0.18 * card_h))
+    loc_font = load_font(round(0.175 * card_h))
     location_text = (location or "未知地点").strip()
-    max_loc_width = card_w
+    max_loc_width = card_w - (marker_x - card_left) - marker_size - padding_x
     lines = wrap_text(draw, location_text, loc_font, max_loc_width)
     if not lines:
         lines = [location_text]
 
-    line_spacing = max(int(loc_font.size * 0.15), 2)
-    text_x = inner_left
-    current_y = location_y
-    for idx, line in enumerate(lines):
+    line_spacing = max(int(loc_font.size * 0.16), 2)
+    text_x = marker_x + marker_size + round(loc_font.size * 0.5)
+    total_text_height = 0
+    line_heights = []
+    for line in lines:
         bbox = text_size(draw, line, loc_font)
-        draw.text((text_x - bbox[0], current_y - bbox[1]), line, font=loc_font, fill=color_with_alpha("FFFFFF", 0.96))
-        current_y += (bbox[3] - bbox[1]) + (line_spacing if idx < len(lines) - 1 else 0)
+        h = bbox[3] - bbox[1]
+        line_heights.append((bbox, h))
+        total_text_height += h
+    total_text_height += line_spacing * (len(lines) - 1)
+
+    current_y = location_block_top + (loc_section_height - total_text_height) / 2
+    for idx, (bbox, h) in enumerate(line_heights):
+        draw.text((text_x - bbox[0], current_y - bbox[1]), lines[idx], font=loc_font, fill=color_with_alpha("FFFFFF", 0.96))
+        current_y += h + (line_spacing if idx < len(lines) - 1 else 0)
 
     # Brand group
-    brand_w = round(0.165 * W)
+    brand_w = round(0.19 * W)
     brand_margin = margin
-    brand_font_l1 = load_font(round(0.045 * W))
-    brand_font_l2 = load_font(round(0.045 * W * 0.65))
-    brand_font_l3 = load_font(round(0.045 * W * 0.55))
+    brand_font_l1 = load_font(round(0.048 * W))
+    brand_font_l2 = load_font(round(0.048 * W * 0.65))
+    brand_font_l3 = load_font(round(0.048 * W * 0.55))
     brand_lines = [
-        ("Your Camera", brand_font_l1, WHITE_PRIMARY),
-        ("Traceable & Trusted", brand_font_l2, WHITE_PRIMARY),
-        ("Anti-fake: P9XXXX", brand_font_l3, color_with_alpha("FFFFFF", 0.75)),
+        ("今日水印", brand_font_l1, WHITE_PRIMARY),
+        ("相机真实时间", brand_font_l2, WHITE_PRIMARY),
+        ("防伪码：P9XXXX", brand_font_l3, color_with_alpha("FFFFFF", 0.75)),
     ]
 
     line_heights = [text_size(draw, txt, font)[3] - text_size(draw, txt, font)[1] for txt, font, _ in brand_lines]
